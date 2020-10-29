@@ -25,20 +25,25 @@ defmodule SMTPServerTest do
   test "should accept HELO", %{socket: socket} do
     assert recv_line(socket) == "220 funnel.example\r\n"
     send_line(socket, "HELO iam.test")
-    assert recv_line(socket) == "250 ok\r\n"
+    assert recv_line(socket) == "250 OK\r\n"
   end
 
   test "should accept EHLO without domain", %{socket: socket} do
     assert recv_line(socket) == "220 funnel.example\r\n"
     send_line(socket, "EHLO")
-    assert recv_line(socket) ==
-      "250-funnel.example greets mysterious client\r\n"
+    assert recv_line(socket) == "250-funnel.example greets localhost\r\n"
   end
 
   test "should receive mail", %{socket: socket} do
     assert recv_line(socket) == "220 funnel.example\r\n"
     send_line(socket, "EHLO iam.test")
-    assert recv_line(socket) == "250-funnel.example greets iam.test\r\n"
+    assert recv_line(socket) == "250-funnel.example greets localhost\r\n"
+    assert recv_line(socket) == "250-8BITMIME\r\n"
+    assert recv_line(socket) == "250-SIZE 35882577\r\n"
+    assert recv_line(socket) == "250 SMTPUTF8\r\n"
+
+    send_line(socket, "MAIL FROM:<spam@example.com>")
+    assert recv_line(socket) == "250 OK\r\n"
   end
 
   defp send_line(socket, line) do

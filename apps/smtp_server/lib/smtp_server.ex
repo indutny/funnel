@@ -52,21 +52,33 @@ defmodule SMTPServer do
   defp serve(socket) do
     # TODO(indutny): probably slow?
     domain = Application.fetch_env!(:smtp_server, :smtp_domain)
+    max_mail_size = Application.fetch_env!(:smtp_server, :max_mail_size)
+
+    {:ok, {remote_addr, _}} = :inet.sockname(socket)
+    {:ok, {:hostent, client_domain, _, _, _, _}} =
+      :inet.gethostbyaddr(remote_addr)
 
     respond(socket, "220 #{domain}")
 
-    {is_extended, client_domain} = case recv(socket) do
-      ["HELO", domain] -> {false, domain}
-      ["EHLO"] -> {true, nil}
-      ["EHLO", domain] -> {true, domain}
+    is_extended = case recv(socket) do
+      ["HELO", domain] -> false
+      ["EHLO", domain] -> true
+      ["EHLO"] -> true
     end
 
     if is_extended do
-      respond(socket, "250-#{domain} greets " <>
-        "#{client_domain || "mysterious client"}")
+      respond(socket, "250-#{domain} greets #{client_domain}")
+      # TODO(indutny): STARTTLS
+      respond(socket, "250-8BITMIME")
+      respond(socket, "250-SIZE #{max_mail_size}")
+      respond(socket, "250 SMTPUTF8")
+    else
+      respond(socket, "250 OK")
     end
-    respond(socket, "250 ok")
 
-    :gen_tcp.close(socket)
+    receive_mail(socket)
+  end
+
+  defp receive_mail(socket) do
   end
 end
