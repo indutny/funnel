@@ -1,18 +1,18 @@
-defmodule SMTPParser do
+defmodule SMTPProtocol do
   @moduledoc """
-  SMTP helpers.
+  SMTP protocol helpers.
   """
 
   @doc ~S"""
   Parses the given path.
 
-      iex> SMTPParser.parse_path("<hello@world.com>")
+      iex> SMTPProtocol.parse_path("<hello@world.com>")
       {:ok, "hello@world.com"}
 
-      iex> SMTPParser.parse_path("<@b, @c:hello@world.com>")
+      iex> SMTPProtocol.parse_path("<@b, @c:hello@world.com>")
       {:ok, "hello@world.com"}
 
-      iex> SMTPParser.parse_path("hello")
+      iex> SMTPProtocol.parse_path("hello")
       {:error, "Invalid mailbox"}
   """
   def parse_path(path) do

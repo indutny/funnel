@@ -103,7 +103,7 @@ defmodule SMTPServer do
     ["MAIL", "FROM:" <> path | _params] = get_line(config, socket)
 
     mailbox =
-      case SMTPParser.parse_path(path) do
+      case SMTPProtocol.parse_path(path) do
         {:ok, mailbox} ->
           mailbox
 
