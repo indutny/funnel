@@ -1,4 +1,7 @@
 defmodule SMTPServer.Connection do
+  alias SMTPServer.Connection
+  alias SMTPServer.Mail
+
   @enforce_keys [:local_domain, :max_mail_size]
   defstruct [
     :local_domain,
@@ -8,8 +11,10 @@ defmodule SMTPServer.Connection do
     read_timeout: 5000
   ]
 
-  alias SMTPServer.Connection
-  alias SMTPServer.Mail
+  @type state :: :handshake | :main | {:rcpt, Mail} | {:data, Mail}
+  @type handle_return ::
+          {:no_response, state}
+          | {:response, state, integer, String.t()}
 
   @doc """
   Start handshake with remote endpoint.
@@ -36,6 +41,9 @@ defmodule SMTPServer.Connection do
         loop(new_state, conn)
     end
   end
+
+  @spec handle_line(Connection, state, String.t()) :: handle_return
+  defp handle_line(conn, state, line)
 
   defp handle_line(_, :handshake, "RSET") do
     {:response, :handshake, 250, "OK"}
@@ -73,12 +81,17 @@ defmodule SMTPServer.Connection do
     end
   end
 
+  defp handle_line(_, :main, "VRFY" <> _) do
+    # Not really supported
+    {:response, :main, 252, "I will be happy to accept your message"}
+  end
+
   defp handle_line(conn, :main, "MAIL FROM:" <> from) do
     case SMTPProtocol.parse_mail_and_params(from, :mail) do
       {:ok, from, params} ->
         case receive_mail(conn, from, params) do
           {:ok, mail} ->
-            {:response, {:receive_rcpt, mail}, 250, "OK"}
+            {:response, {:rcpt, mail}, 250, "OK"}
 
           {:error, :max_size_exceeded} ->
             {:response, :main, 552, "Mail exceeds maximum allowed size"}
@@ -89,44 +102,40 @@ defmodule SMTPServer.Connection do
     end
   end
 
-  defp handle_line(conn, {:receive_rcpt, mail}, "RCPT TO:" <> rcpt) do
+  defp handle_line(conn, {:rcpt, mail}, "RCPT TO:" <> rcpt) do
     case SMTPProtocol.parse_mail_and_params(rcpt, :rcpt) do
       {:ok, rcpt, params} ->
         case receive_rcpt(conn, mail, rcpt, params) do
-          {:ok, new_mail} -> {:response, {:receive_rcpt, new_mail}, 250, "OK"}
+          {:ok, new_mail} -> {:response, {:rcpt, new_mail}, 250, "OK"}
         end
 
       {:error, msg} ->
-        {:response, {:receive_rcpt, mail}, 553, msg}
+        {:response, {:rcpt, mail}, 553, msg}
     end
   end
 
-  defp handle_line(_, {:receive_rcpt, mail}, "DATA") do
+  defp handle_line(_, {:rcpt, mail}, "DATA") do
     case mail.to do
       [] ->
-        {:response, {:receive_rcpt, mail}, 554, "No valid recipients"}
+        {:response, {:rcpt, mail}, 554, "No valid recipients"}
 
       _non_empty ->
-        {:response, {:receive_data, mail}, 354, "Start mail input; end with <CRLF>.<CRLF>"}
+        {:response, {:data, mail}, 354, "Start mail input; end with <CRLF>.<CRLF>"}
     end
   end
 
-  defp handle_line(_, {:receive_data, mail}, ".\r\n") do
+  defp handle_line(_, {:data, mail}, ".\r\n") do
     if Mail.data_size(mail) > mail.max_size do
       {:response, :main, 552, "Mail exceeds maximum allowed size"}
     else
-      IO.inspect(mail)
+      process_mail(mail)
       {:response, :main, 250, "OK"}
     end
   end
 
-  defp handle_line(_, {:receive_data, mail}, data) do
+  defp handle_line(_, {:data, mail}, data) do
     # TODO(indutny): 8BITMIME
-    {:no_response, {:receive_data, Mail.add_data(mail, data)}}
-  end
-
-  defp handle_line(_, :main, "VRFY" <> _) do
-    {:response, :main, 252, "I will be happy to accept your message"}
+    {:no_response, {:data, Mail.add_data(mail, data)}}
   end
 
   defp handle_line(_, state, "DATA") do
@@ -141,6 +150,9 @@ defmodule SMTPServer.Connection do
     {:response, state, 502, "Command not implemented"}
   end
 
+  @spec receive_mail(Connection, String.t(), map()) ::
+          {:ok, Mail}
+          | {:error, atom}
   defp receive_mail(conn, from, params) do
     # TODO(indutny): implement it
     if Map.get(params, :body, :normal) != :normal do
@@ -157,12 +169,21 @@ defmodule SMTPServer.Connection do
     end
   end
 
+  @spec receive_rcpt(Connection, Mail, String.t(), map()) ::
+          {:ok, Mail}
+          | {:error, atom}
   defp receive_rcpt(_, mail, rcpt, _params) do
     # TODO(indutny): check that `rcpt` is in allowlist
     # 550 - if no such user
     # should also disallow outgoing email (different domain) unless
     # authorized.
     {:ok, Mail.add_recipient(mail, rcpt)}
+  end
+
+  @spec process_mail(Mail) :: :ok
+  defp process_mail(mail) do
+    IO.inspect(mail)
+    :ok
   end
 
   #
@@ -173,7 +194,7 @@ defmodule SMTPServer.Connection do
     case :gen_tcp.recv(conn.socket, 0, conn.read_timeout) do
       {:ok, line} ->
         case state do
-          {:receive_data, _} -> line
+          {:data, _} -> line
           _ -> line |> String.replace_trailing("\r\n", "")
         end
 
