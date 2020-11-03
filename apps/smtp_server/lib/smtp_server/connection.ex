@@ -11,10 +11,10 @@ defmodule SMTPServer.Connection do
     read_timeout: 5000
   ]
 
-  @type state :: :handshake | :main | {:rcpt, Mail} | {:data, Mail}
+  @type state() :: :handshake | :main | {:rcpt, Mail} | {:data, Mail}
   @type handle_return ::
-          {:no_response, state}
-          | {:response, state, integer, String.t()}
+          {:no_response, state()}
+          | {:response, state(), integer, String.t()}
 
   @doc """
   Start handshake with remote endpoint.
@@ -42,7 +42,7 @@ defmodule SMTPServer.Connection do
     end
   end
 
-  @spec handle_line(Connection, state, String.t()) :: handle_return
+  @spec handle_line(Connection, state(), String.t()) :: handle_return
   defp handle_line(conn, state, line)
 
   defp handle_line(_, :handshake, "RSET") do
@@ -152,7 +152,7 @@ defmodule SMTPServer.Connection do
 
   @spec receive_mail(Connection, String.t(), map()) ::
           {:ok, Mail}
-          | {:error, atom}
+          | {:error, atom()}
   defp receive_mail(conn, from, params) do
     # TODO(indutny): implement it
     if Map.get(params, :body, :normal) != :normal do
@@ -171,7 +171,7 @@ defmodule SMTPServer.Connection do
 
   @spec receive_rcpt(Connection, Mail, String.t(), map()) ::
           {:ok, Mail}
-          | {:error, atom}
+          | {:error, atom()}
   defp receive_rcpt(_, mail, rcpt, _params) do
     # TODO(indutny): check that `rcpt` is in allowlist
     # 550 - if no such user
