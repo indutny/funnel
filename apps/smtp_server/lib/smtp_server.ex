@@ -74,17 +74,25 @@ defmodule SMTPServer do
     :ok = :gen_tcp.send(socket, line <> "\r\n")
   end
 
+  defp fail(socket, code, line) do
+    respond(socket, "#{code} #{line}")
+    :gen_tcp.shutdown(socket, :write)
+    exit(:shutdown)
+  end
+
   defp handshake(config, socket) do
     {:ok, {remote_addr, _}} = :inet.sockname(socket)
     {:ok, {:hostent, remote_domain, _, _, _, _}} = :inet.gethostbyaddr(remote_addr)
 
     respond(socket, "220 #{config.domain}")
 
+    handshake = get_line(config, socket)
+
     is_extended =
-      case get_line(config, socket) do
-        ["HELO", _] -> false
-        ["EHLO", _] -> true
-        ["EHLO"] -> true
+      case SMTPProtocol.parse_handshake(handshake) do
+        {:ok, :extended, _} -> true
+        {:ok, :legacy, _} -> false
+        {:error, msg} -> fail(socket, 500, msg)
       end
 
     if is_extended do
@@ -109,8 +117,7 @@ defmodule SMTPServer do
           mailbox
 
         {:error, msg} ->
-          respond(socket, "553 " <> msg)
-          exit(:shutdown)
+          fail(socket, 553, msg)
       end
 
     params =
@@ -119,9 +126,16 @@ defmodule SMTPServer do
           params
 
         {:error, msg} ->
-          respond(socket, "553 " <> msg)
-          exit(:shutdown)
+          fail(socket, 553, msg)
       end
+
+    case Map.get(params, :size) do
+      size when size > config.max_mail_size ->
+        fail(socket, 552, "Mail exceeds maximum allowed size")
+
+      _ ->
+        :ok
+    end
 
     # TODO(indutny): check that mailbox is in allowlist
     IO.inspect({mailbox, params})

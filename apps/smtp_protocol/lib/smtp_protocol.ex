@@ -4,6 +4,37 @@ defmodule SMTPProtocol do
   """
 
   @doc ~S"""
+  Parses the handshake message.
+
+      iex> SMTPProtocol.parse_handshake(["EHLO"])
+      {:ok, :extended, nil}
+
+      iex> SMTPProtocol.parse_handshake(["EHLO", "domain"])
+      {:ok, :extended, "domain"}
+
+      iex> SMTPProtocol.parse_handshake(["HELO", "domain"])
+      {:ok, :legacy, "domain"}
+
+      iex> SMTPProtocol.parse_handshake(["LOHE"])
+      {:error, "Invalid handshake"}
+  """
+  def parse_handshake(["HELO", domain]) do
+    {:ok, :legacy, domain}
+  end
+
+  def parse_handshake(["EHLO", domain]) do
+    {:ok, :extended, domain}
+  end
+
+  def parse_handshake(["EHLO"]) do
+    {:ok, :extended, nil}
+  end
+
+  def parse_handshake(_) do
+    {:error, "Invalid handshake"}
+  end
+
+  @doc ~S"""
   Parses the given mail path.
 
   ## Examples
