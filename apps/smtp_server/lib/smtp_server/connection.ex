@@ -42,7 +42,17 @@ defmodule SMTPServer.Connection do
   end
 
   defp handle_line(_, _, "RSET") do
-    {:no_response, :recv_mail}
+    {:response, :recv_mail, 250, "OK"}
+  end
+
+  defp handle_line(_, state, "NOOP") do
+    {:response, state, 250, "OK"}
+  end
+
+  defp handle_line(conn, _, "QUIT") do
+    respond(conn, "221 OK")
+    :gen_tcp.shutdown(conn, :write)
+    exit(:shutdown)
   end
 
   defp handle_line(conn, :handshake, line) do
@@ -53,17 +63,17 @@ defmodule SMTPServer.Connection do
         # TODO(indutny): 8BITMIME
         # respond(conn, "250-8BITMIME")
         respond(conn, "250-SIZE #{conn.max_mail_size}")
-        {:response, :receive_mail, 250, "SMTPUTF8"}
+        {:response, :main, 250, "SMTPUTF8"}
 
       {:ok, :legacy, _} ->
-        {:response, :receive_mail, 250, "OK"}
+        {:response, :main, 250, "OK"}
 
       {:error, msg} ->
         {:response, :handshake, 500, msg}
     end
   end
 
-  defp handle_line(conn, :receive_mail, "MAIL FROM:" <> from) do
+  defp handle_line(conn, :main, "MAIL FROM:" <> from) do
     case SMTPProtocol.parse_mail_and_params(from, :mail) do
       {:ok, from, params} ->
         case receive_mail(conn, from, params) do
@@ -71,11 +81,11 @@ defmodule SMTPServer.Connection do
             {:response, {:receive_rcpt, mail}, 250, "OK"}
 
           {:error, :max_size_exceeded} ->
-            {:response, :receive_mail, 552, "Mail exceeds maximum allowed size"}
+            {:response, :main, 552, "Mail exceeds maximum allowed size"}
         end
 
       {:error, msg} ->
-        {:response, :receive_mail, 553, msg}
+        {:response, :main, 553, msg}
     end
   end
 
@@ -103,16 +113,20 @@ defmodule SMTPServer.Connection do
 
   defp handle_line(_, {:receive_data, mail}, ".\r\n") do
     if Mail.data_size(mail) > mail.max_size do
-      {:response, :receive_mail, 552, "Mail exceeds maximum allowed size"}
+      {:response, :main, 552, "Mail exceeds maximum allowed size"}
     else
       IO.inspect(mail)
-      {:response, :receive_mail, 250, "OK"}
+      {:response, :main, 250, "OK"}
     end
   end
 
   defp handle_line(_, {:receive_data, mail}, data) do
     # TODO(indutny): 8BITMIME
     {:no_response, {:receive_data, Mail.add_data(mail, data)}}
+  end
+
+  defp handle_line(_, :main, "VRFY" <> _) do
+    {:response, :main, 252, "I will be happy to accept your message"}
   end
 
   defp handle_line(_, state, "DATA") do
@@ -157,15 +171,6 @@ defmodule SMTPServer.Connection do
 
   defp get_line(conn, state) do
     case :gen_tcp.recv(conn.socket, 0, conn.read_timeout) do
-      {:ok, "NOOP\r\n"} ->
-        respond(conn, "250 OK")
-        get_line(conn, state)
-
-      {:ok, "QUIT\r\n"} ->
-        respond(conn, "221 OK")
-        :gen_tcp.shutdown(conn, :write)
-        exit(:shutdown)
-
       {:ok, line} ->
         case state do
           {:receive_data, _} -> line
