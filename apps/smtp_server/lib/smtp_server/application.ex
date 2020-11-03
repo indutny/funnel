@@ -10,7 +10,8 @@ defmodule SMTPServer.Application do
     children = [
       {Task.Supervisor, name: SMTPServer.ConnectionSupervisor},
       Supervisor.child_spec({Task, fn -> SMTPServer.listen(port) end},
-        restart: :permanent)
+        restart: :permanent
+      )
     ]
 
     opts = [strategy: :one_for_one, name: SMTPServer.Supervisor]

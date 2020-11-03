@@ -6,18 +6,27 @@ defmodule SMTPServerTest do
 
   setup do
     opts = [port_listener: self()]
-    start_supervised!({Task, fn ->
-      SMTPServer.listen(0, opts)
-    end})
 
-    port = receive do
-      {:port, port} -> port
-    after
-      1000 -> exit(:timed_out)
-    end
+    start_supervised!(
+      {Task,
+       fn ->
+         SMTPServer.listen(0, opts)
+       end}
+    )
 
-    {:ok, socket} = :gen_tcp.connect(
-      '127.0.0.1', port, [:binary, packet: :line, active: false])
+    port =
+      receive do
+        {:port, port} -> port
+      after
+        1000 -> exit(:timed_out)
+      end
+
+    {:ok, socket} =
+      :gen_tcp.connect(
+        '127.0.0.1',
+        port,
+        [:binary, packet: :line, active: false]
+      )
 
     %{socket: socket}
   end
@@ -39,10 +48,10 @@ defmodule SMTPServerTest do
     send_line(socket, "EHLO iam.test")
     assert recv_line(socket) == "250-funnel.example greets localhost\r\n"
     assert recv_line(socket) == "250-8BITMIME\r\n"
-    assert recv_line(socket) == "250-SIZE 35882577\r\n"
+    assert recv_line(socket) == "250-SIZE 31457280\r\n"
     assert recv_line(socket) == "250 SMTPUTF8\r\n"
 
-    send_line(socket, "MAIL FROM:<spam@example.com>")
+    send_line(socket, "MAIL FROM:<spam@example.com> SIZE=100")
     assert recv_line(socket) == "250 OK\r\n"
   end
 

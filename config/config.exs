@@ -18,6 +18,6 @@ import Config
 #
 
 config :smtp_server,
-  port: 0,
+  port: 4040,
   smtp_domain: "funnel.example",
-  max_mail_size: 35882577
+  max_mail_size: 30 * 1024 * 1024
