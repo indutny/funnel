@@ -38,6 +38,30 @@ defmodule SMTPProtocol do
   end
 
   @doc ~S"""
+  Parses mail and params from a single string.
+
+  ## Examples
+
+      iex> SMTPProtocol.parse_mail_and_params("<a@b.com> SIZE=10", :from)
+      {:ok, "a@b.com", %{size: 10}}
+
+      iex> SMTPProtocol.parse_mail_and_params("<a@b.com> SIZE=10", :rcpt)
+      {:error, "Unknown mail parameter"}
+  """
+  def parse_mail_and_params(str, side) do
+    {path, params} =
+      case String.split(str, " ", parts: 2) do
+        [path] -> {path, ""}
+        [path, params] -> {path, params}
+      end
+
+    with {:ok, mailbox} <- SMTPProtocol.parse_mail_path(path),
+         {:ok, params} <- SMTPProtocol.parse_mail_params(params, side) do
+      {:ok, mailbox, params}
+    end
+  end
+
+  @doc ~S"""
   Parses the given mail path.
 
   ## Examples
@@ -64,26 +88,30 @@ defmodule SMTPProtocol do
 
   ## Examples
 
-      iex> SMTPProtocol.parse_mail_params("")
+      iex> SMTPProtocol.parse_mail_params("", :from)
       {:ok, %{}}
 
-      iex> SMTPProtocol.parse_mail_params("SIZE=123")
+      iex> SMTPProtocol.parse_mail_params("SIZE=123", :from)
       {:ok, %{:size => 123}}
 
-      iex> SMTPProtocol.parse_mail_params("SIZE=a")
+      iex> SMTPProtocol.parse_mail_params("SIZE=a", :from)
       {:error, "Invalid value of SIZE parameter"}
 
-      iex> SMTPProtocol.parse_mail_params("SIZE=2 SIZE=3")
-      {:error, "Duplicate parameter"}
-
-      iex> SMTPProtocol.parse_mail_params("A=42")
+      iex> SMTPProtocol.parse_mail_params("SIZE=a", :rcpt)
       {:error, "Unknown mail parameter"}
 
-      iex> SMTPProtocol.parse_mail_params("B")
+      iex> SMTPProtocol.parse_mail_params("SIZE=2 SIZE=3", :from)
+      {:error, "Duplicate parameter"}
+
+      iex> SMTPProtocol.parse_mail_params("A=42", :from)
+      {:error, "Unknown mail parameter"}
+
+      iex> SMTPProtocol.parse_mail_params("B", :from)
       {:error, "Invalid mail parameter"}
   """
-  @spec parse_mail_params(String.t()) :: {:ok, map()} | {:error, String.t()}
-  def parse_mail_params(params) do
+  @spec parse_mail_params(String.t(), :from | :rcpt) ::
+          {:ok, map()} | {:error, String.t()}
+  def parse_mail_params(params, side) do
     params
     # XXX(indutny): this is too lenient
     |> String.split(" ", trim: true)
@@ -91,7 +119,7 @@ defmodule SMTPProtocol do
       with {:ok, map} <- acc do
         case String.split(part, "=", parts: 2) do
           [key, value] ->
-            insert_mail_param(map, key, value)
+            insert_mail_param(side, map, key, value)
 
           _ ->
             {:error, "Invalid mail parameter"}
@@ -100,8 +128,8 @@ defmodule SMTPProtocol do
     end)
   end
 
-  defp insert_mail_param(map, key, value) do
-    case parse_mail_param(key, value) do
+  defp insert_mail_param(side, map, key, value) do
+    case parse_mail_param(side, key, value) do
       {:ok, key, value} ->
         if Map.has_key?(map, key) do
           {:error, "Duplicate parameter"}
@@ -114,14 +142,14 @@ defmodule SMTPProtocol do
     end
   end
 
-  defp parse_mail_param("SIZE", value) do
+  defp parse_mail_param(:from, "SIZE", value) do
     case Integer.parse(value) do
       {size, ""} -> {:ok, :size, size}
       _ -> {:error, "Invalid value of SIZE parameter"}
     end
   end
 
-  defp parse_mail_param(_, _) do
+  defp parse_mail_param(_, _, _) do
     {:error, "Unknown mail parameter"}
   end
 end

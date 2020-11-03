@@ -6,10 +6,10 @@ defmodule SMTPServerTest do
 
   # Just a constant
   @handshake [
-    "250-funnel.example greets localhost\r\n",
-    "250-8BITMIME\r\n",
-    "250-SIZE 31457280\r\n",
-    "250 SMTPUTF8\r\n"
+    "250-funnel.example greets localhost",
+    "250-8BITMIME",
+    "250-SIZE 31457280",
+    "250 SMTPUTF8"
   ]
 
   setup do
@@ -36,7 +36,7 @@ defmodule SMTPServerTest do
         [:binary, packet: :line, active: false]
       )
 
-    assert recv_line(socket) == "220 funnel.example\r\n"
+    assert recv_line(socket) == "220 funnel.example"
     send_line(socket, "EHLO iam.test")
     assert recv_lines(socket, length(@handshake)) == @handshake
 
@@ -45,12 +45,16 @@ defmodule SMTPServerTest do
 
   test "should enforce size limit", %{socket: socket} do
     send_line(socket, "MAIL FROM:<spam@example.com> SIZE=10000000000")
-    assert recv_line(socket) == "552 Mail exceeds maximum allowed size\r\n"
+    assert recv_line(socket) == "552 Mail exceeds maximum allowed size"
   end
 
   test "should receive mail", %{socket: socket} do
     send_line(socket, "MAIL FROM:<spam@example.com> SIZE=100")
-    assert recv_line(socket) == "250 OK\r\n"
+    assert recv_line(socket) == "250 OK"
+    send_line(socket, "RCPT TO:<a@funnel.example>")
+    assert recv_line(socket) == "250 OK"
+    send_line(socket, "RCPT TO:<b@funnel.example>")
+    assert recv_line(socket) == "250 OK"
   end
 
   # Helpers
@@ -64,7 +68,8 @@ defmodule SMTPServerTest do
     1..count
     |> Enum.map(fn _ ->
       {:ok, line} = :gen_tcp.recv(socket, 0, 1000)
-      line
+      assert String.ends_with?(line, "\r\n"), "Line has to end with CRLF"
+      String.replace(line, ~r/\r\n$/, "")
     end)
   end
 

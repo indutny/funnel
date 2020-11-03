@@ -60,28 +60,10 @@ defmodule SMTPServer.Client do
   defp receive_mail(client) do
     "MAIL FROM:" <> from = get_line(client)
 
-    {path, params} =
-      case String.split(from, " ", parts: 2) do
-        [path] -> {path, ""}
-        [path, params] -> {path, params}
-      end
-
-    from =
-      case SMTPProtocol.parse_mail_path(path) do
-        {:ok, from} ->
-          from
-
-        {:error, msg} ->
-          fail(client, 553, msg)
-      end
-
-    params =
-      case SMTPProtocol.parse_mail_params(params) do
-        {:ok, params} ->
-          params
-
-        {:error, msg} ->
-          fail(client, 553, msg)
+    {from, params} =
+      case SMTPProtocol.parse_mail_and_params(from, :from) do
+        {:ok, from, params} -> {from, params}
+        {:error, msg} -> fail(client, 553, msg)
       end
 
     case Map.get(params, :size) do
@@ -93,7 +75,6 @@ defmodule SMTPServer.Client do
     end
 
     # TODO(indutny): check that `from` is in allowlist
-    IO.inspect({from, params})
     respond(client, "250 OK")
 
     mail = %Mail{from: from, to: []}
@@ -102,5 +83,19 @@ defmodule SMTPServer.Client do
   end
 
   defp recv_mail_recipient(client, mail) do
+    case get_line(client) do
+      "RCPT TO:" <> rcpt ->
+        {rcpt, params} =
+          case SMTPProtocol.parse_mail_and_params(rcpt, :rcpt) do
+            {:ok, rcpt, params} -> {rcpt, params}
+            {:error, msg} -> fail(client, 553, msg)
+          end
+
+        respond(client, "250 OK")
+
+        mail = Mail.add_recipient(mail, rcpt)
+        IO.inspect(mail)
+        recv_mail_recipient(client, mail)
+    end
   end
 end
