@@ -51,7 +51,7 @@ defmodule SMTPServer.Client do
           get_line(client)
         else
           receive_mail(client)
-          exit(:shutdown)
+          exit(:unreachable)
         end
 
       {:ok, "QUIT\r\n"} ->
@@ -101,6 +101,8 @@ defmodule SMTPServer.Client do
     end
 
     # TODO(indutny): check that `from` is in allowlist
+    # Should probably receive the mail and keep it for a few days until
+    # challenge is solved.
     respond(client, "250 OK")
 
     mail = %Mail{from: from, to: []}
@@ -120,9 +122,15 @@ defmodule SMTPServer.Client do
         respond(client, "250 OK")
 
         # TODO(indutny): check that `rcpt` is in allowlist
+        # 550 - if no such user
+        # should also disallow outgoing email (different domain) unless
+        # authorized.
         mail = Mail.add_recipient(mail, rcpt)
-        IO.inspect(mail)
         recv_mail_recipient(client, mail)
+
+      "DATA" ->
+        respond(client, "354  Start mail input; end with <CRLF>.<CRLF>")
+        exit(:not_implemented)
     end
   end
 end

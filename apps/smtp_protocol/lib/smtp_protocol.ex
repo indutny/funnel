@@ -153,17 +153,46 @@ defmodule SMTPProtocol do
     end)
   end
 
-  defp insert_mail_param(side, map, key, value) do
-    case parse_mail_param(side, key, value) do
-      {:ok, key, value} ->
-        if Map.has_key?(map, key) do
-          {:error, "Duplicate parameter"}
-        else
-          {:ok, Map.put(map, key, value)}
-        end
+  @doc """
+  Parses xtext encoding.
 
-      err = {:error, _} ->
-        err
+  ## Examples
+
+      iex> SMTPProtocol.parse_xtext("test")
+      {:ok, "test"}
+
+      iex> SMTPProtocol.parse_xtext("A+2BB")
+      {:ok, "A+B"}
+
+      iex> SMTPProtocol.parse_xtext("=")
+      {:error, "Invalid xtext"}
+  """
+  @spec parse_xtext(String.t()) :: {:ok, String.t()} | {:error, String.t()}
+  def parse_xtext(value) do
+    pattern = ~r/^([\x21-\x2a\x2c-\x3c\x3e-\x7f]|\+[0-9A-F]{2})*$/
+
+    if Regex.match?(pattern, value) do
+      {:ok,
+       Regex.replace(~r/\+([0-9A-F]{2})/, value, fn _, hex ->
+         hex = String.to_integer(hex, 16)
+         <<hex>>
+       end)}
+    else
+      {:error, "Invalid xtext"}
+    end
+  end
+
+  #
+  # Private helpers
+  #
+
+  defp insert_mail_param(side, map, key, value) do
+    with {:ok, key, value} <- parse_mail_param(side, key, value) do
+      if Map.has_key?(map, key) do
+        {:error, "Duplicate parameter"}
+      else
+        {:ok, Map.put(map, key, value)}
+      end
     end
   end
 
@@ -171,6 +200,12 @@ defmodule SMTPProtocol do
     case Integer.parse(value) do
       {size, ""} -> {:ok, :size, size}
       _ -> {:error, "Invalid value of SIZE parameter"}
+    end
+  end
+
+  defp parse_mail_param(_, "ALT-ADDRESS", value) do
+    with {:ok, mailbox} <- parse_xtext(value) do
+      {:ok, :alt_address, mailbox}
     end
   end
 
