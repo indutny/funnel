@@ -55,7 +55,7 @@ defmodule SMTPProtocol do
         [path, params] -> {path, params}
       end
 
-    with {:ok, mailbox} <- SMTPProtocol.parse_mail_path(path),
+    with {:ok, mailbox} <- SMTPProtocol.parse_mail_path(path, side),
          {:ok, params} <- SMTPProtocol.parse_mail_params(params, side) do
       {:ok, mailbox, params}
     end
@@ -66,20 +66,28 @@ defmodule SMTPProtocol do
 
   ## Examples
 
-      iex> SMTPProtocol.parse_mail_path("<hello@world.com>")
+      iex> SMTPProtocol.parse_mail_path("<hello@world.com>", :from)
       {:ok, "hello@world.com"}
 
-      iex> SMTPProtocol.parse_mail_path("<@b, @c:hello@world.com>")
+      iex> SMTPProtocol.parse_mail_path("<@b, @c:hello@world.com>", :from)
       {:ok, "hello@world.com"}
 
-      iex> SMTPProtocol.parse_mail_path("hello")
+      iex> SMTPProtocol.parse_mail_path("<>", :from)
+      {:ok, ""}
+
+      iex> SMTPProtocol.parse_mail_path("<>", :rcpt)
+      {:error, "Forward path can't be empty"}
+
+      iex> SMTPProtocol.parse_mail_path("hello", :from)
       {:error, "Invalid mail path"}
   """
-  @spec parse_mail_path(String.t()) :: {:ok, String.t()} | {:error, String.t()}
-  def parse_mail_path(path) do
-    case Regex.run(~r/<(.*:)?([^:]+)>/, path) do
-      nil -> {:error, "Invalid mail path"}
-      [_, _, mailbox] -> {:ok, mailbox}
+  @spec parse_mail_path(String.t(), :from | :rcpt) ::
+          {:ok, String.t()} | {:error, String.t()}
+  def parse_mail_path(path, side) do
+    case {side, Regex.run(~r/<(.*:)?([^:]*)>/, path)} do
+      {_, nil} -> {:error, "Invalid mail path"}
+      {:rcpt, [_, _, ""]} -> {:error, "Forward path can't be empty"}
+      {_, [_, _, mailbox]} -> {:ok, mailbox}
     end
   end
 
