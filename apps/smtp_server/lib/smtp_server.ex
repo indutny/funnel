@@ -64,9 +64,12 @@ defmodule SMTPServer do
 
   defp get_line(config, socket) do
     case :gen_tcp.recv(socket, 0, config.read_timeout) do
-      # XXX(indutny): this is too lenient
-      {:ok, line} -> String.split(line)
-      {:error, :closed} -> exit(:shutdown)
+      {:ok, line} ->
+        line
+        |> String.replace_trailing("\r\n", "")
+
+      {:error, :closed} ->
+        exit(:shutdown)
     end
   end
 
@@ -109,7 +112,13 @@ defmodule SMTPServer do
   end
 
   defp receive_mail(config, socket) do
-    ["MAIL", "FROM:" <> path | params] = get_line(config, socket)
+    "MAIL FROM:" <> from = get_line(config, socket)
+
+    {path, params} =
+      case String.split(from, " ", parts: 2) do
+        [path] -> {path, ""}
+        [path, params] -> {path, params}
+      end
 
     mailbox =
       case SMTPProtocol.parse_mail_path(path) do
