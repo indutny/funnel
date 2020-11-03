@@ -5,7 +5,6 @@ defmodule SMTPServer.Connection do
     :remote_domain,
     :max_mail_size,
     :socket,
-    in_handshake: true,
     read_timeout: 5000
   ]
 
@@ -22,12 +21,31 @@ defmodule SMTPServer.Connection do
 
     respond(conn, "220 #{conn.local_domain}")
 
-    handshake(%Connection{conn | remote_domain: remote_domain})
+    loop(:handshake, %Connection{conn | remote_domain: remote_domain})
   end
 
-  defp handshake(conn) do
-    line = get_line(conn)
+  defp loop(state, conn) do
+    line = get_line(conn, state)
 
+    case handle_line(conn, state, line) do
+      {:no_response, new_state} ->
+        loop(new_state, conn)
+
+      {:response, new_state, code, msg} ->
+        respond(conn, "#{code} #{msg}")
+        loop(new_state, conn)
+    end
+  end
+
+  defp handle_line(_, :handshake, "RSET") do
+    {:response, :handshake, 250, "OK"}
+  end
+
+  defp handle_line(_, _, "RSET") do
+    {:no_response, :recv_mail}
+  end
+
+  defp handle_line(conn, :handshake, line) do
     case SMTPProtocol.parse_handshake(line) do
       {:ok, :extended, _} ->
         respond(conn, "250-#{conn.local_domain} greets #{conn.remote_domain}")
@@ -35,46 +53,123 @@ defmodule SMTPServer.Connection do
         # TODO(indutny): 8BITMIME
         # respond(conn, "250-8BITMIME")
         respond(conn, "250-SIZE #{conn.max_mail_size}")
-        respond(conn, "250 SMTPUTF8")
-        receive_mail(%Connection{conn | in_handshake: false})
+        {:response, :receive_mail, 250, "SMTPUTF8"}
 
       {:ok, :legacy, _} ->
-        false
-        respond(conn, "250 OK")
-        receive_mail(%Connection{conn | in_handshake: false})
+        {:response, :receive_mail, 250, "OK"}
 
       {:error, msg} ->
-        respond(conn, "500 #{msg}")
-        handshake(conn)
-        exit(:unreachable)
+        {:response, :handshake, 500, msg}
     end
   end
 
-  defp get_line(conn, mode \\ :trim) do
+  defp handle_line(conn, :receive_mail, "MAIL FROM:" <> from) do
+    case SMTPProtocol.parse_mail_and_params(from, :mail) do
+      {:ok, from, params} ->
+        case receive_mail(conn, from, params) do
+          {:ok, mail} ->
+            {:response, {:receive_rcpt, mail}, 250, "OK"}
+
+          {:error, :max_size_exceeded} ->
+            {:response, :receive_mail, 552, "Mail exceeds maximum allowed size"}
+        end
+
+      {:error, msg} ->
+        {:response, :receive_mail, 553, msg}
+    end
+  end
+
+  defp handle_line(conn, {:receive_rcpt, mail}, "RCPT TO:" <> rcpt) do
+    case SMTPProtocol.parse_mail_and_params(rcpt, :rcpt) do
+      {:ok, rcpt, params} ->
+        case receive_rcpt(conn, mail, rcpt, params) do
+          {:ok, new_mail} -> {:response, {:receive_rcpt, new_mail}, 250, "OK"}
+        end
+
+      {:error, msg} ->
+        {:response, {:receive_rcpt, mail}, 553, msg}
+    end
+  end
+
+  defp handle_line(_, {:receive_rcpt, mail}, "DATA") do
+    case mail.to do
+      [] ->
+        {:response, {:receive_rcpt, mail}, 554, "No valid recipients"}
+
+      _non_empty ->
+        {:response, {:data, mail}, 354, "Start mail input; end with <CRLF>.<CRLF>"}
+    end
+  end
+
+  defp handle_line(_, {:receive_data, mail}, ".\r\n") do
+    if Mail.data_size(mail) > mail.max_size do
+      {:response, :receive_mail, 552, "Mail exceeds maximum allowed size"}
+    else
+      IO.inspect(mail)
+      {:response, :receive_mail, 250, "OK"}
+    end
+  end
+
+  defp handle_line(_, {:receive_data, mail}, data) do
+    # TODO(indutny): 8BITMIME
+    {:no_response, {:receive_data, Mail.add_data(mail, data)}}
+  end
+
+  defp handle_line(_, state, "DATA") do
+    {:response, state, 503, "Command out of sequence"}
+  end
+
+  defp handle_line(_, state, "RCPT TO:" <> _) do
+    {:response, state, 503, "Command out of sequence"}
+  end
+
+  defp handle_line(_, state, _) do
+    {:response, state, 502, "Command not implemented"}
+  end
+
+  defp receive_mail(conn, from, params) do
+    # TODO(indutny): implement it
+    if Map.get(params, :body, :normal) != :normal do
+      raise "8BITMIME not implemented yet"
+    end
+
+    case Map.get(params, :size, conn.max_mail_size) do
+      size when size > conn.max_mail_size ->
+        {:error, :max_size_exceeded}
+
+      max_size ->
+        mail = %Mail{from: from, to: [], max_size: max_size}
+        {:ok, mail}
+    end
+  end
+
+  defp receive_rcpt(_, mail, rcpt, _params) do
+    # TODO(indutny): check that `rcpt` is in allowlist
+    # 550 - if no such user
+    # should also disallow outgoing email (different domain) unless
+    # authorized.
+    {:ok, Mail.add_recipient(mail, rcpt)}
+  end
+
+  #
+  # Helpers
+  #
+
+  defp get_line(conn, state) do
     case :gen_tcp.recv(conn.socket, 0, conn.read_timeout) do
       {:ok, "NOOP\r\n"} ->
         respond(conn, "250 OK")
-        get_line(conn)
-
-      # TODO(indutny): consider rate-limiting?
-      {:ok, "RSET\r\n"} ->
-        respond(conn, "250 OK")
-
-        if conn.in_handshake do
-          get_line(conn)
-        else
-          receive_mail(conn)
-          exit(:unreachable)
-        end
+        get_line(conn, state)
 
       {:ok, "QUIT\r\n"} ->
         respond(conn, "221 OK")
+        :gen_tcp.shutdown(conn, :write)
         exit(:shutdown)
 
       {:ok, line} ->
-        case mode do
-          :trim -> line |> String.replace_trailing("\r\n", "")
-          :raw -> line
+        case state do
+          :data -> line
+          _ -> line |> String.replace_trailing("\r\n", "")
         end
 
       {:error, :closed} ->
@@ -90,118 +185,5 @@ defmodule SMTPServer.Connection do
       {:error, :closed} ->
         exit(:shutdown)
     end
-  end
-
-  defp receive_mail(conn) do
-    from =
-      case get_line(conn) do
-        "MAIL FROM:" <> from ->
-          from
-
-        "DATA" ->
-          respond(conn, "503 Command out of sequence")
-          receive_mail(conn)
-          exit(:unreachable)
-
-        "RCPT TO:" <> _ ->
-          respond(conn, "503 Command out of sequence")
-          receive_mail(conn)
-          exit(:unreachable)
-      end
-
-    {from, params} =
-      case SMTPProtocol.parse_mail_and_params(from, :mail) do
-        {:ok, from, params} ->
-          {from, params}
-
-        {:error, msg} ->
-          respond(conn, "553 #{msg}")
-          receive_mail(conn)
-          exit(:unreachable)
-      end
-
-    # TODO(indutny): implement it
-    if Map.get(params, :body, :normal) != :normal do
-      raise "8BITMIME not implemented yet"
-    end
-
-    max_size =
-      case Map.get(params, :size, conn.max_mail_size) do
-        size when size > conn.max_mail_size ->
-          respond(conn, "552 Mail exceeds maximum allowed size")
-          receive_mail(conn)
-          exit(:unreachable)
-
-        size ->
-          size
-      end
-
-    # TODO(indutny): check that `from` is in allowlist
-    # Should probably receive the mail and keep it for a few days until
-    # challenge is solved.
-    respond(conn, "250 OK")
-
-    mail = %Mail{from: from, to: [], max_size: max_size}
-
-    receive_mail_recipient(conn, mail)
-  end
-
-  defp receive_mail_recipient(conn, mail) do
-    case get_line(conn) do
-      "RCPT TO:" <> rcpt ->
-        {rcpt, _params} =
-          case SMTPProtocol.parse_mail_and_params(rcpt, :rcpt) do
-            {:ok, rcpt, params} ->
-              {rcpt, params}
-
-            {:error, msg} ->
-              respond(conn, "553 #{msg}")
-              receive_mail_recipient(conn, mail)
-              exit(:unreachable)
-          end
-
-        respond(conn, "250 OK")
-
-        # TODO(indutny): check that `rcpt` is in allowlist
-        # 550 - if no such user
-        # should also disallow outgoing email (different domain) unless
-        # authorized.
-        mail = Mail.add_recipient(mail, rcpt)
-        receive_mail_recipient(conn, mail)
-
-      "DATA" ->
-        case mail.to do
-          [] ->
-            respond(conn, "554 No valid recipients")
-            receive_mail_recipient(conn, mail)
-            exit(:unreachable)
-
-          _non_empty ->
-            respond(conn, "354 Start mail input; end with <CRLF>.<CRLF>")
-            receive_data(conn, mail)
-        end
-    end
-  end
-
-  defp receive_data(conn, mail) do
-    case get_line(conn, :raw) do
-      "." ->
-        process_mail(conn, mail)
-
-      data ->
-        # TODO(indutny): 8BITMIME
-        mail = Mail.add_data(mail, data)
-        receive_data(conn, mail)
-    end
-  end
-
-  defp process_mail(conn, mail) do
-    if Mail.data_size(mail) > mail.max_size do
-      respond(conn, "552 Mail exceeds maximum allowed size")
-      receive_mail(conn)
-      exit(:unreachable)
-    end
-
-    IO.inspect(mail)
   end
 end
