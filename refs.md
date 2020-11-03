@@ -7,3 +7,4 @@
 - SMTP Service Extension
   for Message Size Declaration - https://tools.ietf.org/html/rfc1870
 - DomainKeys Identified Mail (DKIM) Signatures - https://tools.ietf.org/html/rfc6376
+- SMTP Service Extension for 8-bit MIME Transport - https://tools.ietf.org/html/rfc6152

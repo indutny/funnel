@@ -42,7 +42,7 @@ defmodule SMTPProtocol do
 
   ## Examples
 
-      iex> SMTPProtocol.parse_mail_and_params("<a@b.com> SIZE=10", :from)
+      iex> SMTPProtocol.parse_mail_and_params("<a@b.com> SIZE=10", :mail)
       {:ok, "a@b.com", %{size: 10}}
 
       iex> SMTPProtocol.parse_mail_and_params("not an email", :rcpt)
@@ -68,20 +68,20 @@ defmodule SMTPProtocol do
 
   Usual email addresses:
 
-      iex> SMTPProtocol.parse_mail_path("<hello@world.com>", :from)
+      iex> SMTPProtocol.parse_mail_path("<hello@world.com>", :mail)
       {:ok, "hello@world.com"}
 
   Deprecated but supported source path part of the address:
 
-      iex> SMTPProtocol.parse_mail_path("<@b, @c:hello@world.com>", :from)
+      iex> SMTPProtocol.parse_mail_path("<@b, @c:hello@world.com>", :mail)
       {:ok, "hello@world.com"}
 
-      iex> SMTPProtocol.parse_mail_path("not an email", :from)
+      iex> SMTPProtocol.parse_mail_path("not an email", :mail)
       {:error, "Invalid mail path"}
 
   Empty email addresses are used to notify sender of delivery failure:
 
-      iex> SMTPProtocol.parse_mail_path("<>", :from)
+      iex> SMTPProtocol.parse_mail_path("<>", :mail)
       {:ok, ""}
 
   but can't be a recipient of the email:
@@ -90,7 +90,7 @@ defmodule SMTPProtocol do
       {:error, "Forward path can't be empty"}
 
   """
-  @spec parse_mail_path(String.t(), :from | :rcpt) ::
+  @spec parse_mail_path(String.t(), :mail | :rcpt) ::
           {:ok, String.t()} | {:error, String.t()}
   def parse_mail_path(path, side) do
     case {side, Regex.run(~r/<(.*:)?([^:]*)>/, path)} do
@@ -105,15 +105,15 @@ defmodule SMTPProtocol do
 
   ## Examples
 
-      iex> SMTPProtocol.parse_mail_params("", :from)
+      iex> SMTPProtocol.parse_mail_params("", :mail)
       {:ok, %{}}
 
   SIZE extension parameter would be automatically parsed from `mail-parameters`
 
-      iex> SMTPProtocol.parse_mail_params("SIZE=123", :from)
+      iex> SMTPProtocol.parse_mail_params("SIZE=123", :mail)
       {:ok, %{:size => 123}}
 
-      iex> SMTPProtocol.parse_mail_params("SIZE=a", :from)
+      iex> SMTPProtocol.parse_mail_params("SIZE=a", :mail)
       {:error, "Invalid value of SIZE parameter"}
 
   but not for `rcpt-parameters`:
@@ -123,18 +123,18 @@ defmodule SMTPProtocol do
 
   and duplicate values wouldn't be allowed:
 
-      iex> SMTPProtocol.parse_mail_params("SIZE=2 SIZE=3", :from)
+      iex> SMTPProtocol.parse_mail_params("SIZE=2 SIZE=3", :mail)
       {:error, "Duplicate parameter"}
 
   just as unknown or incorrect parameters:
 
-      iex> SMTPProtocol.parse_mail_params("A=42", :from)
+      iex> SMTPProtocol.parse_mail_params("A=42", :mail)
       {:error, "Unknown mail parameter"}
 
-      iex> SMTPProtocol.parse_mail_params("B", :from)
+      iex> SMTPProtocol.parse_mail_params("B", :mail)
       {:error, "Invalid mail parameter"}
   """
-  @spec parse_mail_params(String.t(), :from | :rcpt) ::
+  @spec parse_mail_params(String.t(), :mail | :rcpt) ::
           {:ok, map()} | {:error, String.t()}
   def parse_mail_params(params, side) do
     params
@@ -196,7 +196,7 @@ defmodule SMTPProtocol do
     end
   end
 
-  defp parse_mail_param(:from, "SIZE", value) do
+  defp parse_mail_param(:mail, "SIZE", value) do
     case Integer.parse(value) do
       {size, ""} -> {:ok, :size, size}
       _ -> {:error, "Invalid value of SIZE parameter"}
@@ -206,6 +206,14 @@ defmodule SMTPProtocol do
   defp parse_mail_param(_, "ALT-ADDRESS", value) do
     with {:ok, mailbox} <- parse_xtext(value) do
       {:ok, :alt_address, mailbox}
+    end
+  end
+
+  defp parse_mail_param(:mail, "BODY", value) do
+    case value do
+      "7BIT" -> {:ok, :body, :normal}
+      "8BITMIME" -> {:ok, :body, :mime}
+      _ -> {:error, "Invalid value of BODY parameter"}
     end
   end
 

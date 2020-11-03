@@ -7,7 +7,6 @@ defmodule SMTPServerTest do
   # Just a constant
   @handshake [
     "250-funnel.example greets localhost",
-    "250-8BITMIME",
     "250-SIZE 31457280",
     "250 SMTPUTF8"
   ]
@@ -86,6 +85,15 @@ defmodule SMTPServerTest do
     assert recv_line(socket) == "552 Mail exceeds maximum allowed size"
   end
 
+  test "should disallow mail without recipients", %{socket: socket} do
+    handshake(socket)
+
+    send_line(socket, "MAIL FROM:<spam@example.com> SIZE=100")
+    assert recv_line(socket) == "250 OK"
+    send_line(socket, "DATA")
+    assert recv_line(socket) == "554 No valid recipients"
+  end
+
   test "should receive mail", %{socket: socket} do
     handshake(socket)
 
@@ -95,6 +103,11 @@ defmodule SMTPServerTest do
     assert recv_line(socket) == "250 OK"
     send_line(socket, "RCPT TO:<b@funnel.example>")
     assert recv_line(socket) == "250 OK"
+    send_line(socket, "DATA")
+    assert recv_line(socket) == "354 Start mail input; end with <CRLF>.<CRLF>"
+    send_line(socket, "Hey!\r\nHow are you")
+    send_line(socket, "")
+    send_line(socket, ".")
   end
 
   # Helpers

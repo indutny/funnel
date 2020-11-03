@@ -1,7 +1,7 @@
 defmodule SMTPServer do
   require Logger
 
-  alias SMTPServer.Client
+  alias SMTPServer.Connection
 
   @moduledoc """
   `SMTPServer` implementation.
@@ -32,7 +32,7 @@ defmodule SMTPServer do
         :ok
     end
 
-    client_template = %Client{
+    client_template = %Connection{
       local_domain: Application.fetch_env!(:smtp_server, :smtp_domain),
       max_mail_size: Application.fetch_env!(:smtp_server, :max_mail_size)
     }
@@ -51,7 +51,7 @@ defmodule SMTPServer do
             :ready -> :ok
           end
 
-          Client.start(%Client{client_template | socket: remote})
+          Connection.serve(%Connection{client_template | socket: remote})
         end
       )
 
