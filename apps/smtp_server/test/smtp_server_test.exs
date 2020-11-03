@@ -36,19 +36,59 @@ defmodule SMTPServerTest do
         [:binary, packet: :line, active: false]
       )
 
-    assert recv_line(socket) == "220 funnel.example"
-    send_line(socket, "EHLO iam.test")
-    assert recv_lines(socket, length(@handshake)) == @handshake
-
     %{socket: socket}
   end
 
+  describe "NOOP" do
+    test "should ignore NOOP during handshake", %{socket: socket} do
+      assert recv_line(socket) == "220 funnel.example"
+
+      send_line(socket, "NOOP")
+      assert recv_line(socket) == "250 OK"
+
+      handshake(socket, :skip_first)
+    end
+
+    test "should ignore NOOP after handshake", %{socket: socket} do
+      handshake(socket)
+
+      send_line(socket, "NOOP")
+      assert recv_line(socket) == "250 OK"
+    end
+  end
+
+  describe "RSET" do
+    test "should treat RSET as NOOP during handshake", %{socket: socket} do
+      assert recv_line(socket) == "220 funnel.example"
+
+      send_line(socket, "RSET")
+      assert recv_line(socket) == "250 OK"
+
+      handshake(socket, :skip_first)
+    end
+
+    # TODO(indutny): RSET during mail
+  end
+
+  test "should close connection on QUIT", %{socket: socket} do
+    handshake(socket)
+
+    send_line(socket, "QUIT")
+    assert recv_line(socket) == "221 OK"
+
+    assert is_closed(socket)
+  end
+
   test "should enforce size limit", %{socket: socket} do
+    handshake(socket)
+
     send_line(socket, "MAIL FROM:<spam@example.com> SIZE=10000000000")
     assert recv_line(socket) == "552 Mail exceeds maximum allowed size"
   end
 
   test "should receive mail", %{socket: socket} do
+    handshake(socket)
+
     send_line(socket, "MAIL FROM:<spam@example.com> SIZE=100")
     assert recv_line(socket) == "250 OK"
     send_line(socket, "RCPT TO:<a@funnel.example>")
@@ -58,6 +98,19 @@ defmodule SMTPServerTest do
   end
 
   # Helpers
+
+  defp handshake(socket, mode \\ :normal) do
+    case mode do
+      :normal ->
+        assert recv_line(socket) == "220 funnel.example"
+
+      :skip_first ->
+        :ok
+    end
+
+    send_line(socket, "EHLO iam.test")
+    assert recv_lines(socket, length(@handshake)) == @handshake
+  end
 
   defp send_line(socket, line) do
     :ok = :gen_tcp.send(socket, line <> "\r\n")
@@ -76,5 +129,12 @@ defmodule SMTPServerTest do
   defp recv_line(socket) do
     [line] = recv_lines(socket, 1)
     line
+  end
+
+  defp is_closed(socket) do
+    case :gen_tcp.recv(socket, 0, 1000) do
+      {:error, :closed} -> true
+      _ -> false
+    end
   end
 end

@@ -45,8 +45,8 @@ defmodule SMTPProtocol do
       iex> SMTPProtocol.parse_mail_and_params("<a@b.com> SIZE=10", :from)
       {:ok, "a@b.com", %{size: 10}}
 
-      iex> SMTPProtocol.parse_mail_and_params("<a@b.com> SIZE=10", :rcpt)
-      {:error, "Unknown mail parameter"}
+      iex> SMTPProtocol.parse_mail_and_params("not an email", :rcpt)
+      {:error, "Invalid mail path"}
   """
   def parse_mail_and_params(str, side) do
     {path, params} =
@@ -66,20 +66,29 @@ defmodule SMTPProtocol do
 
   ## Examples
 
+  Usual email addresses:
+
       iex> SMTPProtocol.parse_mail_path("<hello@world.com>", :from)
       {:ok, "hello@world.com"}
+
+  Deprecated but supported source path part of the address:
 
       iex> SMTPProtocol.parse_mail_path("<@b, @c:hello@world.com>", :from)
       {:ok, "hello@world.com"}
 
+      iex> SMTPProtocol.parse_mail_path("not an email", :from)
+      {:error, "Invalid mail path"}
+
+  Empty email addresses are used to notify sender of delivery failure:
+
       iex> SMTPProtocol.parse_mail_path("<>", :from)
       {:ok, ""}
+
+  but can't be a recipient of the email:
 
       iex> SMTPProtocol.parse_mail_path("<>", :rcpt)
       {:error, "Forward path can't be empty"}
 
-      iex> SMTPProtocol.parse_mail_path("hello", :from)
-      {:error, "Invalid mail path"}
   """
   @spec parse_mail_path(String.t(), :from | :rcpt) ::
           {:ok, String.t()} | {:error, String.t()}
@@ -99,17 +108,25 @@ defmodule SMTPProtocol do
       iex> SMTPProtocol.parse_mail_params("", :from)
       {:ok, %{}}
 
+  SIZE extension parameter would be automatically parsed from `mail-parameters`
+
       iex> SMTPProtocol.parse_mail_params("SIZE=123", :from)
       {:ok, %{:size => 123}}
 
       iex> SMTPProtocol.parse_mail_params("SIZE=a", :from)
       {:error, "Invalid value of SIZE parameter"}
 
+  but not for `rcpt-parameters`:
+
       iex> SMTPProtocol.parse_mail_params("SIZE=a", :rcpt)
       {:error, "Unknown mail parameter"}
 
+  and duplicate values wouldn't be allowed:
+
       iex> SMTPProtocol.parse_mail_params("SIZE=2 SIZE=3", :from)
       {:error, "Duplicate parameter"}
+
+  just as unknown or incorrect parameters:
 
       iex> SMTPProtocol.parse_mail_params("A=42", :from)
       {:error, "Unknown mail parameter"}

@@ -1,7 +1,8 @@
 defmodule SMTPServer.Client do
   @enforce_keys [:local_domain, :max_mail_size]
-  defstruct [:local_domain, :max_mail_size, :socket, read_timeout: 5000]
+  defstruct [:local_domain, :max_mail_size, :socket, in_handshake: true, read_timeout: 5000]
 
+  alias SMTPServer.Client
   alias SMTPServer.Mail
 
   @doc """
@@ -33,11 +34,30 @@ defmodule SMTPServer.Client do
       respond(client, "250 OK")
     end
 
-    receive_mail(client)
+    receive_mail(%Client{client | in_handshake: false})
   end
 
   defp get_line(client) do
     case :gen_tcp.recv(client.socket, 0, client.read_timeout) do
+      {:ok, "NOOP\r\n"} ->
+        respond(client, "250 OK")
+        get_line(client)
+
+      # TODO(indutny): consider rate-limiting?
+      {:ok, "RSET\r\n"} ->
+        respond(client, "250 OK")
+
+        if client.in_handshake do
+          get_line(client)
+        else
+          receive_mail(client)
+          exit(:shutdown)
+        end
+
+      {:ok, "QUIT\r\n"} ->
+        respond(client, "221 OK")
+        exit(:shutdown)
+
       {:ok, line} ->
         line
         |> String.replace_trailing("\r\n", "")
@@ -48,7 +68,13 @@ defmodule SMTPServer.Client do
   end
 
   defp respond(client, line) do
-    :ok = :gen_tcp.send(client.socket, line <> "\r\n")
+    case :gen_tcp.send(client.socket, line <> "\r\n") do
+      :ok ->
+        :ok
+
+      {:error, :closed} ->
+        exit(:shutdown)
+    end
   end
 
   defp fail(client, code, line) do
@@ -93,6 +119,7 @@ defmodule SMTPServer.Client do
 
         respond(client, "250 OK")
 
+        # TODO(indutny): check that `rcpt` is in allowlist
         mail = Mail.add_recipient(mail, rcpt)
         IO.inspect(mail)
         recv_mail_recipient(client, mail)
