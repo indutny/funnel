@@ -1,13 +1,12 @@
 defmodule SMTPServer do
   require Logger
 
+  alias SMTPServer.Client
+
   @moduledoc """
   `SMTPServer` implementation.
   """
-
-  @enforce_keys [:domain, :max_mail_size]
-  defstruct [:domain, :max_mail_size, read_timeout: 5000]
-
+  @spec listen(integer, keyword()) :: :ok
   def listen(port \\ 0, opts \\ []) do
     {:ok, socket} =
       :gen_tcp.listen(port, [
@@ -33,16 +32,16 @@ defmodule SMTPServer do
         :ok
     end
 
-    config = %SMTPServer{
-      domain: Application.fetch_env!(:smtp_server, :smtp_domain),
+    client_template = %Client{
+      local_domain: Application.fetch_env!(:smtp_server, :smtp_domain),
       max_mail_size: Application.fetch_env!(:smtp_server, :max_mail_size)
     }
 
-    accept(config, socket)
+    accept(socket, client_template)
   end
 
-  defp accept(config, socket) do
-    {:ok, client} = :gen_tcp.accept(socket)
+  defp accept(socket, client_template) do
+    {:ok, remote} = :gen_tcp.accept(socket)
 
     {:ok, pid} =
       Task.Supervisor.start_child(
@@ -52,103 +51,13 @@ defmodule SMTPServer do
             :ready -> :ok
           end
 
-          handshake(config, client)
+          Client.start(%Client{client_template | socket: remote})
         end
       )
 
-    :ok = :gen_tcp.controlling_process(client, pid)
+    :ok = :gen_tcp.controlling_process(remote, pid)
     send(pid, :ready)
 
-    accept(config, socket)
-  end
-
-  defp get_line(config, socket) do
-    case :gen_tcp.recv(socket, 0, config.read_timeout) do
-      {:ok, line} ->
-        line
-        |> String.replace_trailing("\r\n", "")
-
-      {:error, :closed} ->
-        exit(:shutdown)
-    end
-  end
-
-  defp respond(socket, line) do
-    :ok = :gen_tcp.send(socket, line <> "\r\n")
-  end
-
-  defp fail(socket, code, line) do
-    respond(socket, "#{code} #{line}")
-    :gen_tcp.shutdown(socket, :write)
-    exit(:shutdown)
-  end
-
-  defp handshake(config, socket) do
-    {:ok, {remote_addr, _}} = :inet.sockname(socket)
-    {:ok, {:hostent, remote_domain, _, _, _, _}} = :inet.gethostbyaddr(remote_addr)
-
-    respond(socket, "220 #{config.domain}")
-
-    handshake = get_line(config, socket)
-
-    is_extended =
-      case SMTPProtocol.parse_handshake(handshake) do
-        {:ok, :extended, _} -> true
-        {:ok, :legacy, _} -> false
-        {:error, msg} -> fail(socket, 500, msg)
-      end
-
-    if is_extended do
-      respond(socket, "250-#{config.domain} greets #{remote_domain}")
-      # TODO(indutny): STARTTLS
-      respond(socket, "250-8BITMIME")
-      respond(socket, "250-SIZE #{config.max_mail_size}")
-      respond(socket, "250 SMTPUTF8")
-    else
-      respond(socket, "250 OK")
-    end
-
-    receive_mail(config, socket)
-  end
-
-  defp receive_mail(config, socket) do
-    "MAIL FROM:" <> from = get_line(config, socket)
-
-    {path, params} =
-      case String.split(from, " ", parts: 2) do
-        [path] -> {path, ""}
-        [path, params] -> {path, params}
-      end
-
-    mailbox =
-      case SMTPProtocol.parse_mail_path(path) do
-        {:ok, mailbox} ->
-          mailbox
-
-        {:error, msg} ->
-          fail(socket, 553, msg)
-      end
-
-    params =
-      case SMTPProtocol.parse_mail_params(params) do
-        {:ok, params} ->
-          params
-
-        {:error, msg} ->
-          fail(socket, 553, msg)
-      end
-
-    case Map.get(params, :size) do
-      size when size > config.max_mail_size ->
-        fail(socket, 552, "Mail exceeds maximum allowed size")
-
-      _ ->
-        :ok
-    end
-
-    # TODO(indutny): check that mailbox is in allowlist
-    IO.inspect({mailbox, params})
-
-    respond(socket, "250 OK")
+    accept(socket, client_template)
   end
 end

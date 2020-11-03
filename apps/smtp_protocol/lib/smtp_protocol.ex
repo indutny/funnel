@@ -18,6 +18,9 @@ defmodule SMTPProtocol do
       iex> SMTPProtocol.parse_handshake("LOHE")
       {:error, "Invalid handshake"}
   """
+  @spec parse_handshake(String.t()) ::
+          {:ok, :legacy | :extended, String.t() | nil}
+          | {:error, String.t()}
   def parse_handshake("HELO " <> domain) do
     {:ok, :legacy, domain}
   end
@@ -48,6 +51,7 @@ defmodule SMTPProtocol do
       iex> SMTPProtocol.parse_mail_path("hello")
       {:error, "Invalid mail path"}
   """
+  @spec parse_mail_path(String.t()) :: {:ok, String.t()} | {:error, String.t()}
   def parse_mail_path(path) do
     case Regex.run(~r/<(.*:)?([^:]+)>/, path) do
       nil -> {:error, "Invalid mail path"}
@@ -78,6 +82,7 @@ defmodule SMTPProtocol do
       iex> SMTPProtocol.parse_mail_params("B")
       {:error, "Invalid mail parameter"}
   """
+  @spec parse_mail_params(String.t()) :: {:ok, map()} | {:error, String.t()}
   def parse_mail_params(params) do
     params
     # XXX(indutny): this is too lenient
