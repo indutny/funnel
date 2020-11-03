@@ -97,7 +97,7 @@ defmodule SMTPServer.Connection do
         {:response, {:receive_rcpt, mail}, 554, "No valid recipients"}
 
       _non_empty ->
-        {:response, {:data, mail}, 354, "Start mail input; end with <CRLF>.<CRLF>"}
+        {:response, {:receive_data, mail}, 354, "Start mail input; end with <CRLF>.<CRLF>"}
     end
   end
 
@@ -168,7 +168,7 @@ defmodule SMTPServer.Connection do
 
       {:ok, line} ->
         case state do
-          :data -> line
+          {:receive_data, _} -> line
           _ -> line |> String.replace_trailing("\r\n", "")
         end
 
