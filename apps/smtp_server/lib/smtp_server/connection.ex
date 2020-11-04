@@ -24,6 +24,7 @@ defmodule SMTPServer.Connection do
   @type line_response ::
           {:no_response, state()}
           | {:response, state(), integer, String.t()}
+          | :exit
 
   @doc """
   Start handshake with remote endpoint.
@@ -48,6 +49,9 @@ defmodule SMTPServer.Connection do
       {:response, new_state, code, msg} ->
         respond(conn, "#{code} #{msg}")
         loop(new_state, conn)
+
+      :exit ->
+        exit(:shutdown)
     end
   end
 
@@ -69,7 +73,7 @@ defmodule SMTPServer.Connection do
   defp handle_line(conn, _, "QUIT") do
     respond(conn, "221 OK")
     :gen_tcp.shutdown(conn.socket, :write)
-    exit(:shutdown)
+    :exit
   end
 
   defp handle_line(conn, :handshake, line) do
@@ -114,9 +118,8 @@ defmodule SMTPServer.Connection do
   defp handle_line(conn, {:rcpt, mail}, "RCPT TO:" <> rcpt) do
     case SMTPProtocol.parse_mail_and_params(rcpt, :rcpt) do
       {:ok, rcpt, params} ->
-        case receive_rcpt(conn, mail, rcpt, params) do
-          {:ok, new_mail} -> {:response, {:rcpt, new_mail}, 250, "OK"}
-        end
+        {:ok, new_mail} = receive_rcpt(conn, mail, rcpt, params)
+        {:response, {:rcpt, new_mail}, 250, "OK"}
 
       {:error, msg} ->
         {:response, {:rcpt, mail}, 553, msg}
