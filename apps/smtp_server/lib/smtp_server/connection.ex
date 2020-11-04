@@ -51,7 +51,7 @@ defmodule SMTPServer.Connection do
         loop(new_state, conn)
 
       :exit ->
-        exit(:shutdown)
+        :ok
     end
   end
 
