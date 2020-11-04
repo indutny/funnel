@@ -44,7 +44,7 @@ defmodule SMTPServerTest do
     test "should ignore NOOP during handshake", %{socket: socket} do
       assert recv_line(socket) == "220 funnel.example"
 
-      send_line(socket, "NooP")
+      send_line(socket, "NOOP")
       assert recv_line(socket) == "250 OK"
 
       handshake(socket, :skip_first)
@@ -53,7 +53,7 @@ defmodule SMTPServerTest do
     test "should ignore NOOP after handshake", %{socket: socket} do
       handshake(socket)
 
-      send_line(socket, "NoOp")
+      send_line(socket, "NOOP")
       assert recv_line(socket) == "250 OK"
     end
   end
@@ -62,7 +62,7 @@ defmodule SMTPServerTest do
     test "should treat RSET as NOOP during handshake", %{socket: socket} do
       assert recv_line(socket) == "220 funnel.example"
 
-      send_line(socket, "RsEt")
+      send_line(socket, "RSET")
       assert recv_line(socket) == "250 OK"
 
       handshake(socket, :skip_first)
@@ -74,7 +74,7 @@ defmodule SMTPServerTest do
   test "should close connection on QUIT", %{socket: socket} do
     handshake(socket)
 
-    send_line(socket, "QUit")
+    send_line(socket, "QUIT")
     assert recv_line(socket) == "221 OK"
 
     assert is_closed(socket)
@@ -83,7 +83,7 @@ defmodule SMTPServerTest do
   test "should enforce size limit", %{socket: socket} do
     handshake(socket)
 
-    send_line(socket, "MaiL FrOm:<spam@example.com> SIZE=10000000000")
+    send_line(socket, "MAIL FROM:<spam@example.com> SIZE=10000000000")
     assert recv_line(socket) == "552 Mail exceeds maximum allowed size"
   end
 
@@ -92,7 +92,7 @@ defmodule SMTPServerTest do
 
     send_line(socket, "MAIL FROM:<spam@example.com> SIZE=100")
     assert recv_line(socket) == "250 OK"
-    send_line(socket, "DatA")
+    send_line(socket, "DATA")
     assert recv_line(socket) == "554 No valid recipients"
   end
 
@@ -101,7 +101,7 @@ defmodule SMTPServerTest do
 
     send_line(socket, "MAIL FROM:<spam@example.com> SIZE=100")
     assert recv_line(socket) == "250 OK"
-    send_line(socket, "Rcpt To:<a@funnel.example>")
+    send_line(socket, "RCPT TO:<a@funnel.example>")
     assert recv_line(socket) == "250 OK"
     send_line(socket, "RCPT TO:<b@funnel.example>")
     assert recv_line(socket) == "250 OK"

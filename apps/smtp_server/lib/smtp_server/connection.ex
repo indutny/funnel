@@ -57,51 +57,46 @@ defmodule SMTPServer.Connection do
     end
   end
 
-  @spec handle_line(t(), state(), String.t()) :: line_response()
+  @spec handle_line(t(), state(), SMTPProtocol.command()) :: line_response()
   defp handle_line(conn, state, line)
 
-  defp handle_line(_, :handshake, "RSET") do
+  defp handle_line(_, :handshake, {:rset, ""}) do
     {:response, :handshake, 250, "OK"}
   end
 
-  defp handle_line(_, _, "RSET") do
+  defp handle_line(_, _, {:rset, ""}) do
     {:response, :main, 250, "OK"}
   end
 
-  defp handle_line(_, state, "NOOP") do
+  defp handle_line(_, state, {:noop, ""}) do
     {:response, state, 250, "OK"}
   end
 
-  defp handle_line(conn, _, "QUIT") do
+  defp handle_line(conn, _, {:quit, ""}) do
     respond(conn, "221 OK")
     :gen_tcp.shutdown(conn.socket, :write)
     :exit
   end
 
-  defp handle_line(conn, :handshake, line) do
-    case SMTPProtocol.parse_handshake(line) do
-      {:ok, :extended, _} ->
-        respond(conn, "250-#{conn.local_domain} greets #{conn.remote_domain}")
-        # TODO(indutny): STARTTLS
-        respond(conn, "250-8BITMIME")
-        respond(conn, "250-PIPELINING")
-        respond(conn, "250-SIZE #{conn.max_mail_size}")
-        {:response, :main, 250, "SMTPUTF8"}
-
-      {:ok, :legacy, _} ->
-        {:response, :main, 250, "OK"}
-
-      {:error, msg} ->
-        {:response, :handshake, 500, msg}
-    end
+  defp handle_line(conn, :handshake, {:helo, _domain}) do
+    {:response, :main, 250, "OK"}
   end
 
-  defp handle_line(_, :main, "VRFY" <> _) do
+  defp handle_line(conn, :handshake, {:ehlo, _domain}) do
+    respond(conn, "250-#{conn.local_domain} greets #{conn.remote_domain}")
+    # TODO(indutny): STARTTLS
+    respond(conn, "250-8BITMIME")
+    respond(conn, "250-PIPELINING")
+    respond(conn, "250-SIZE #{conn.max_mail_size}")
+    {:response, :main, 250, "SMTPUTF8"}
+  end
+
+  defp handle_line(_, :main, {:vrfy, _}) do
     # Not really supported
     {:response, :main, 252, "I will be happy to accept your message"}
   end
 
-  defp handle_line(conn, :main, "MAIL FROM:" <> reverse_path) do
+  defp handle_line(conn, :main, {:mail_from, reverse_path}) do
     case SMTPProtocol.parse_mail_and_params(reverse_path, :mail) do
       {:ok, reverse_path, params} ->
         case receive_mail(conn, reverse_path, params) do
@@ -117,7 +112,7 @@ defmodule SMTPServer.Connection do
     end
   end
 
-  defp handle_line(conn, {:rcpt, mail}, "RCPT TO:" <> forward_path) do
+  defp handle_line(conn, {:rcpt, mail}, {:rcpt_to, forward_path}) do
     case SMTPProtocol.parse_mail_and_params(forward_path, :rcpt) do
       {:ok, forward_path, params} ->
         {:ok, new_mail} = receive_forward_path(conn, mail, forward_path, params)
@@ -128,7 +123,7 @@ defmodule SMTPServer.Connection do
     end
   end
 
-  defp handle_line(_, {:rcpt, mail}, "DATA") do
+  defp handle_line(_, {:rcpt, mail}, {:data, ""}) do
     case mail.forward_paths do
       [] ->
         {:response, {:rcpt, mail}, 554, "No valid recipients"}
@@ -151,15 +146,15 @@ defmodule SMTPServer.Connection do
     {:no_response, {:data, Mail.add_data(mail, data)}}
   end
 
-  defp handle_line(_, state, "DATA") do
+  defp handle_line(_, state, {:data, ""}) do
     {:response, state, 503, "Command out of sequence"}
   end
 
-  defp handle_line(_, state, "RCPT TO:" <> _) do
+  defp handle_line(_, state, {:rcpt_to, _}) do
     {:response, state, 503, "Command out of sequence"}
   end
 
-  defp handle_line(_, state, line) do
+  defp handle_line(_, state, {:unknown, line}) do
     Logger.info("Unknown command #{line}")
     {:response, state, 502, "Command not implemented"}
   end
@@ -218,12 +213,7 @@ defmodule SMTPServer.Connection do
           _ ->
             line
             |> String.trim_trailing()
-
-            # I'm not proud of it, but it simplifies code above
-            |> String.replace(
-              ~r/^(HELO|EHLO|MAIL FROM|RCPT TO|DATA|RSET|NOOP|QUIT|VRFY)/i,
-              fn part -> String.upcase(part, :ascii) end
-            )
+            |> SMTPProtocol.parse_command()
         end
 
       {:error, :closed} ->

@@ -3,38 +3,50 @@ defmodule SMTPProtocol do
   SMTP protocol helpers.
   """
 
+  @type command_kind ::
+          :helo | :ehlo | :mail_from | :rcpt_to | :data | :rset | :noop | :quit | :vrfy
+  @type command_extra :: String.t()
+  @type command :: {command_kind(), command_extra()}
+
+  @commands %{
+    ~r/^HELO\s/i => :helo,
+    ~r/^EHLO(\s|$)/i => :ehlo,
+    ~r/^MAIL FROM:/i => :mail_from,
+    ~r/^RCPT TO:/i => :rcpt_to,
+    ~r/^DATA(\s|$)/i => :data,
+    ~r/^RSET(\s|$)/i => :rset,
+    ~r/^NOOP(\s|$)/i => :noop,
+    ~r/^QUIT(\s|$)/i => :quit,
+    ~r/^VRFY(\s|$)/i => :vrfy
+  }
+
   @doc ~S"""
-  Parses the handshake message.
+  Parses the command.
 
-      iex> SMTPProtocol.parse_handshake("EHLO")
-      {:ok, :extended, nil}
+  ## Examples
 
-      iex> SMTPProtocol.parse_handshake("EHLO domain")
-      {:ok, :extended, "domain"}
+      iex> SMTPProtocol.parse_command("EHLO")
+      {:ehlo, ""}
 
-      iex> SMTPProtocol.parse_handshake("HELO domain")
-      {:ok, :legacy, "domain"}
+      iex> SMTPProtocol.parse_command("HELO domain")
+      {:helo, "domain"}
 
-      iex> SMTPProtocol.parse_handshake("LOHE")
-      {:error, "Invalid handshake"}
+      iex> SMTPProtocol.parse_command("MAIL FROM:<a@b.com> A=1 B=2")
+      {:mail_from, "<a@b.com> A=1 B=2"}
+
+      iex> SMTPProtocol.parse_command("RCPT TO:<a@b.com> A=1 B=2")
+      {:rcpt_to, "<a@b.com> A=1 B=2"}
+
+      iex> SMTPProtocol.parse_command("DATA")
+      {:data, ""}
   """
-  @spec parse_handshake(String.t()) ::
-          {:ok, :legacy | :extended, String.t() | nil}
-          | {:error, String.t()}
-  def parse_handshake("HELO " <> domain) do
-    {:ok, :legacy, domain}
-  end
-
-  def parse_handshake("EHLO " <> domain) do
-    {:ok, :extended, domain}
-  end
-
-  def parse_handshake("EHLO") do
-    {:ok, :extended, nil}
-  end
-
-  def parse_handshake(_) do
-    {:error, "Invalid handshake"}
+  @spec parse_command(String.t()) :: command()
+  def parse_command(line) do
+    Enum.find_value(@commands, {:unknown, line}, fn {pattern, type} ->
+      if String.match?(line, pattern) do
+        {type, String.replace(line, pattern, "")}
+      end
+    end)
   end
 
   @doc ~S"""
