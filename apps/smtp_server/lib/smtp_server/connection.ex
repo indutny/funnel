@@ -12,6 +12,7 @@ defmodule SMTPServer.Connection do
   ]
 
   @type state() :: :handshake | :main | {:rcpt, Mail} | {:data, Mail}
+
   @type handle_return ::
           {:no_response, state()}
           | {:response, state(), integer, String.t()}
@@ -19,7 +20,7 @@ defmodule SMTPServer.Connection do
   @doc """
   Start handshake with remote endpoint.
   """
-  @spec serve(SMTPServer.Connection) :: :ok
+  @spec serve(%Connection{}) :: :ok
   def serve(conn) do
     {:ok, {remote_addr, _}} = :inet.sockname(conn.socket)
     {:ok, {:hostent, remote_domain, _, _, _, _}} = :inet.gethostbyaddr(remote_addr)
@@ -42,7 +43,7 @@ defmodule SMTPServer.Connection do
     end
   end
 
-  @spec handle_line(Connection, state(), String.t()) :: handle_return
+  @spec handle_line(%Connection{}, state(), String.t()) :: handle_return
   defp handle_line(conn, state, line)
 
   defp handle_line(_, :handshake, "RSET") do
@@ -50,7 +51,7 @@ defmodule SMTPServer.Connection do
   end
 
   defp handle_line(_, _, "RSET") do
-    {:response, :recv_mail, 250, "OK"}
+    {:response, :main, 250, "OK"}
   end
 
   defp handle_line(_, state, "NOOP") do
@@ -59,7 +60,7 @@ defmodule SMTPServer.Connection do
 
   defp handle_line(conn, _, "QUIT") do
     respond(conn, "221 OK")
-    :gen_tcp.shutdown(conn, :write)
+    :gen_tcp.shutdown(conn.socket, :write)
     exit(:shutdown)
   end
 
@@ -150,7 +151,7 @@ defmodule SMTPServer.Connection do
     {:response, state, 502, "Command not implemented"}
   end
 
-  @spec receive_mail(Connection, String.t(), map()) ::
+  @spec receive_mail(%Connection{}, String.t(), map()) ::
           {:ok, Mail}
           | {:error, atom()}
   defp receive_mail(conn, from, params) do
@@ -169,8 +170,8 @@ defmodule SMTPServer.Connection do
     end
   end
 
-  @spec receive_rcpt(Connection, Mail, String.t(), map()) ::
-          {:ok, Mail}
+  @spec receive_rcpt(%Connection{}, %Mail{}, String.t(), map()) ::
+          {:ok, %Mail{}}
           | {:error, atom()}
   defp receive_rcpt(_, mail, rcpt, _params) do
     # TODO(indutny): check that `rcpt` is in allowlist
@@ -180,7 +181,7 @@ defmodule SMTPServer.Connection do
     {:ok, Mail.add_recipient(mail, rcpt)}
   end
 
-  @spec process_mail(Mail) :: :ok
+  @spec process_mail(%Mail{}) :: :ok
   defp process_mail(mail) do
     IO.inspect(mail)
     :ok
