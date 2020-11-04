@@ -25,11 +25,8 @@ defmodule SMTPProtocol do
 
   ## Examples
 
-      iex> SMTPProtocol.parse_command("EHLO")
-      {:ehlo, ""}
-
-      iex> SMTPProtocol.parse_command("HELO domain")
-      {:helo, "domain"}
+      iex> SMTPProtocol.parse_command("EHLO domain")
+      {:ehlo, "domain"}
 
       iex> SMTPProtocol.parse_command("MAIL FROM:<a@b.com> A=1 B=2")
       {:mail_from, "<a@b.com> A=1 B=2"}
@@ -43,7 +40,7 @@ defmodule SMTPProtocol do
   @spec parse_command(String.t()) :: command()
   def parse_command(line) do
     Enum.find_value(@commands, {:unknown, line}, fn {pattern, type} ->
-      case String.split(line, pattern) do
+      case String.split(line, pattern, parts: 2) do
         ["", extra] ->
           {type, extra}
 
