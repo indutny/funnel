@@ -1,16 +1,16 @@
 defmodule SMTPServer.Mail do
-  @enforce_keys [:from, :to, :max_size]
-  defstruct [:from, :to, :max_size, data: <<>>]
+  @enforce_keys [:reverse_path, :max_size]
+  defstruct [:reverse_path, :max_size, forward_paths: [], data: <<>>]
 
   @type t() :: %SMTPServer.Mail{
-          from: String.t(),
-          to: [String.t()],
+          reverse_path: String.t(),
+          forward_paths: [String.t()],
           max_size: integer | nil,
           data: binary
         }
 
-  def add_recipient(mail, mailbox) do
-    %SMTPServer.Mail{mail | to: [mailbox | mail.to]}
+  def add_forward_path(mail, forward_path) do
+    %SMTPServer.Mail{mail | forward_paths: [forward_path | mail.forward_paths]}
   end
 
   def add_data(mail, data) do

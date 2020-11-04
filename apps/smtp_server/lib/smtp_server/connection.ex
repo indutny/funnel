@@ -51,7 +51,7 @@ defmodule SMTPServer.Connection do
         loop(new_state, conn)
 
       :exit ->
-        :ok
+        exit(:shutdown)
     end
   end
 
@@ -81,8 +81,8 @@ defmodule SMTPServer.Connection do
       {:ok, :extended, _} ->
         respond(conn, "250-#{conn.local_domain} greets #{conn.remote_domain}")
         # TODO(indutny): STARTTLS
-        # TODO(indutny): 8BITMIME
-        # respond(conn, "250-8BITMIME")
+        respond(conn, "250-8BITMIME")
+        respond(conn, "250-PIPELINING")
         respond(conn, "250-SIZE #{conn.max_mail_size}")
         {:response, :main, 250, "SMTPUTF8"}
 
@@ -99,10 +99,10 @@ defmodule SMTPServer.Connection do
     {:response, :main, 252, "I will be happy to accept your message"}
   end
 
-  defp handle_line(conn, :main, "MAIL FROM:" <> from) do
-    case SMTPProtocol.parse_mail_and_params(from, :mail) do
-      {:ok, from, params} ->
-        case receive_mail(conn, from, params) do
+  defp handle_line(conn, :main, "MAIL FROM:" <> reverse_path) do
+    case SMTPProtocol.parse_mail_and_params(reverse_path, :mail) do
+      {:ok, reverse_path, params} ->
+        case receive_mail(conn, reverse_path, params) do
           {:ok, mail} ->
             {:response, {:rcpt, mail}, 250, "OK"}
 
@@ -115,10 +115,10 @@ defmodule SMTPServer.Connection do
     end
   end
 
-  defp handle_line(conn, {:rcpt, mail}, "RCPT TO:" <> rcpt) do
-    case SMTPProtocol.parse_mail_and_params(rcpt, :rcpt) do
-      {:ok, rcpt, params} ->
-        {:ok, new_mail} = receive_rcpt(conn, mail, rcpt, params)
+  defp handle_line(conn, {:rcpt, mail}, "RCPT TO:" <> forward_path) do
+    case SMTPProtocol.parse_mail_and_params(forward_path, :rcpt) do
+      {:ok, forward_path, params} ->
+        {:ok, new_mail} = receive_forward_path(conn, mail, forward_path, params)
         {:response, {:rcpt, new_mail}, 250, "OK"}
 
       {:error, msg} ->
@@ -127,7 +127,7 @@ defmodule SMTPServer.Connection do
   end
 
   defp handle_line(_, {:rcpt, mail}, "DATA") do
-    case mail.to do
+    case mail.forward_paths do
       [] ->
         {:response, {:rcpt, mail}, 554, "No valid recipients"}
 
@@ -146,7 +146,6 @@ defmodule SMTPServer.Connection do
   end
 
   defp handle_line(_, {:data, mail}, data) do
-    # TODO(indutny): 8BITMIME
     {:no_response, {:data, Mail.add_data(mail, data)}}
   end
 
@@ -165,31 +164,30 @@ defmodule SMTPServer.Connection do
   @spec receive_mail(t(), String.t(), map()) ::
           {:ok, Mail}
           | {:error, atom()}
-  defp receive_mail(conn, from, params) do
-    # TODO(indutny): implement it
-    if Map.get(params, :body, :normal) != :normal do
-      raise "8BITMIME not implemented yet"
-    end
-
+  defp receive_mail(conn, reverse_path, params) do
+    # TODO(indutny): should we bother about possible 7-bit encoding?
     case Map.get(params, :size, conn.max_mail_size) do
       size when size > conn.max_mail_size ->
         {:error, :max_size_exceeded}
 
       max_size ->
-        mail = %Mail{from: from, to: [], max_size: max_size}
+        mail = %Mail{
+          reverse_path: reverse_path,
+          max_size: max_size
+        }
         {:ok, mail}
     end
   end
 
-  @spec receive_rcpt(t(), Mail.t(), String.t(), map()) ::
+  @spec receive_forward_path(t(), Mail.t(), String.t(), map()) ::
           {:ok, Mail.t()}
           | {:error, atom()}
-  defp receive_rcpt(_, mail, rcpt, _params) do
-    # TODO(indutny): check that `rcpt` is in allowlist
+  defp receive_forward_path(_, mail, forward_path, _params) do
+    # TODO(indutny): check that `forward_path` is in allowlist
     # 550 - if no such user
     # should also disallow outgoing email (different domain) unless
     # authorized.
-    {:ok, Mail.add_recipient(mail, rcpt)}
+    {:ok, Mail.add_forward_path(mail, forward_path)}
   end
 
   @spec process_mail(Mail.t()) :: :ok

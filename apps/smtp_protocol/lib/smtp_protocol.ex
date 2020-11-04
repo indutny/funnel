@@ -76,7 +76,7 @@ defmodule SMTPProtocol do
       iex> SMTPProtocol.parse_mail_path("<@b, @c:hello@world.com>", :mail)
       {:ok, "hello@world.com"}
 
-      iex> SMTPProtocol.parse_mail_path("not an email", :mail)
+      iex> SMTPProtocol.parse_mail_path("<not an email>", :mail)
       {:error, "Invalid mail path"}
 
   Empty email addresses are used to notify sender of delivery failure:
@@ -93,9 +93,11 @@ defmodule SMTPProtocol do
   @spec parse_mail_path(String.t(), :mail | :rcpt) ::
           {:ok, String.t()} | {:error, String.t()}
   def parse_mail_path(path, side) do
-    case {side, Regex.run(~r/<(.*:)?([^:]*)>/, path)} do
+    # TODO(indutny): parse it properly sometime
+    case {side, Regex.run(~r/^<(.*:)?([^@:]+@[^@:]+)>$|^<>$/, path)} do
       {_, nil} -> {:error, "Invalid mail path"}
-      {:rcpt, [_, _, ""]} -> {:error, "Forward path can't be empty"}
+      {:rcpt, ["<>"]} -> {:error, "Forward path can't be empty"}
+      {:mail, ["<>"]} -> {:ok, ""}
       {_, [_, _, mailbox]} -> {:ok, mailbox}
     end
   end

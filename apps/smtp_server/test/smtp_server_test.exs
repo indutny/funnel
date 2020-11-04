@@ -7,6 +7,8 @@ defmodule SMTPServerTest do
   # Just a constant
   @handshake [
     "250-funnel.example greets localhost",
+    "250-8BITMIME",
+    "250-PIPELINING",
     "250-SIZE 31457280",
     "250 SMTPUTF8"
   ]
