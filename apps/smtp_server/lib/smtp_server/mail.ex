@@ -2,6 +2,13 @@ defmodule SMTPServer.Mail do
   @enforce_keys [:from, :to, :max_size]
   defstruct [:from, :to, :max_size, data: <<>>]
 
+  @type t() :: %SMTPServer.Mail{
+          from: String.t(),
+          to: [String.t()],
+          max_size: integer | nil,
+          data: binary
+        }
+
   def add_recipient(mail, mailbox) do
     %SMTPServer.Mail{mail | to: [mailbox | mail.to]}
   end

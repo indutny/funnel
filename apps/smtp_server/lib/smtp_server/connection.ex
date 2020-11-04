@@ -11,16 +11,24 @@ defmodule SMTPServer.Connection do
     read_timeout: 5000
   ]
 
+  @type t() :: %Connection{
+          local_domain: String.t(),
+          remote_domain: String.t(),
+          max_mail_size: integer,
+          socket: nil | :gen_tcp.socket(),
+          read_timeout: integer()
+        }
+
   @type state() :: :handshake | :main | {:rcpt, Mail} | {:data, Mail}
 
-  @type handle_return ::
+  @type line_response ::
           {:no_response, state()}
           | {:response, state(), integer, String.t()}
 
   @doc """
   Start handshake with remote endpoint.
   """
-  @spec serve(%Connection{}) :: :ok
+  @spec serve(t()) :: :ok
   def serve(conn) do
     {:ok, {remote_addr, _}} = :inet.sockname(conn.socket)
     {:ok, {:hostent, remote_domain, _, _, _, _}} = :inet.gethostbyaddr(remote_addr)
@@ -43,7 +51,7 @@ defmodule SMTPServer.Connection do
     end
   end
 
-  @spec handle_line(%Connection{}, state(), String.t()) :: handle_return
+  @spec handle_line(t(), state(), String.t()) :: line_response()
   defp handle_line(conn, state, line)
 
   defp handle_line(_, :handshake, "RSET") do
@@ -151,7 +159,7 @@ defmodule SMTPServer.Connection do
     {:response, state, 502, "Command not implemented"}
   end
 
-  @spec receive_mail(%Connection{}, String.t(), map()) ::
+  @spec receive_mail(t(), String.t(), map()) ::
           {:ok, Mail}
           | {:error, atom()}
   defp receive_mail(conn, from, params) do
@@ -170,8 +178,8 @@ defmodule SMTPServer.Connection do
     end
   end
 
-  @spec receive_rcpt(%Connection{}, %Mail{}, String.t(), map()) ::
-          {:ok, %Mail{}}
+  @spec receive_rcpt(t(), Mail.t(), String.t(), map()) ::
+          {:ok, Mail.t()}
           | {:error, atom()}
   defp receive_rcpt(_, mail, rcpt, _params) do
     # TODO(indutny): check that `rcpt` is in allowlist
@@ -181,7 +189,7 @@ defmodule SMTPServer.Connection do
     {:ok, Mail.add_recipient(mail, rcpt)}
   end
 
-  @spec process_mail(%Mail{}) :: :ok
+  @spec process_mail(Mail.t()) :: :ok
   defp process_mail(mail) do
     IO.inspect(mail)
     :ok
