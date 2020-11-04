@@ -43,8 +43,12 @@ defmodule SMTPProtocol do
   @spec parse_command(String.t()) :: command()
   def parse_command(line) do
     Enum.find_value(@commands, {:unknown, line}, fn {pattern, type} ->
-      if String.match?(line, pattern) do
-        {type, String.replace(line, pattern, "")}
+      case String.split(line, pattern) do
+        ["", extra] ->
+          {type, extra}
+
+        _ ->
+          false
       end
     end)
   end
