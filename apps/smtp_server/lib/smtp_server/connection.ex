@@ -78,7 +78,7 @@ defmodule SMTPServer.Connection do
     :exit
   end
 
-  defp handle_line(conn, :handshake, {:helo, _domain}) do
+  defp handle_line(_, :handshake, {:helo, _domain}) do
     {:response, :main, 250, "OK"}
   end
 
@@ -99,7 +99,7 @@ defmodule SMTPServer.Connection do
   defp handle_line(conn, :main, {:mail_from, reverse_path}) do
     case SMTPProtocol.parse_mail_and_params(reverse_path, :mail) do
       {:ok, reverse_path, params} ->
-        case receive_mail(conn, reverse_path, params) do
+        case receive_reverse_path(conn, reverse_path, params) do
           {:ok, mail} ->
             {:response, {:rcpt, mail}, 250, "OK"}
 
@@ -124,12 +124,10 @@ defmodule SMTPServer.Connection do
   end
 
   defp handle_line(_, {:rcpt, mail}, {:data, ""}) do
-    case mail.forward_paths do
-      [] ->
-        {:response, {:rcpt, mail}, 554, "No valid recipients"}
-
-      _non_empty ->
-        {:response, {:data, mail}, 354, "Start mail input; end with <CRLF>.<CRLF>"}
+    if Enum.empty?(mail.forward_paths) do
+      {:response, {:rcpt, mail}, 554, "No valid recipients"}
+    else
+      {:response, {:data, mail}, 354, "Start mail input; end with <CRLF>.<CRLF>"}
     end
   end
 
@@ -159,10 +157,10 @@ defmodule SMTPServer.Connection do
     {:response, state, 502, "Command not implemented"}
   end
 
-  @spec receive_mail(t(), String.t(), map()) ::
+  @spec receive_reverse_path(t(), String.t(), map()) ::
           {:ok, Mail}
           | {:error, atom()}
-  defp receive_mail(conn, reverse_path, params) do
+  defp receive_reverse_path(conn, reverse_path, params) do
     # TODO(indutny): should we bother about possible 7-bit encoding?
     case Map.get(params, :size, conn.max_mail_size) do
       size when size > conn.max_mail_size ->
@@ -170,7 +168,7 @@ defmodule SMTPServer.Connection do
 
       max_size ->
         mail = %Mail{
-          reverse_path: reverse_path,
+          reverse_path: {reverse_path, params},
           max_size: max_size
         }
 
@@ -181,12 +179,13 @@ defmodule SMTPServer.Connection do
   @spec receive_forward_path(t(), Mail.t(), String.t(), map()) ::
           {:ok, Mail.t()}
           | {:error, atom()}
-  defp receive_forward_path(_, mail, forward_path, _params) do
+  defp receive_forward_path(_, mail, forward_path, params) do
     # TODO(indutny): check that `forward_path` is in allowlist
     # 550 - if no such user
     # should also disallow outgoing email (different domain) unless
     # authorized.
-    {:ok, Mail.add_forward_path(mail, forward_path)}
+    # NOTE: Allow case-insensitive Postmaster
+    {:ok, Mail.add_forward_path(mail, {forward_path, params})}
   end
 
   @spec process_mail(Mail.t()) :: :ok

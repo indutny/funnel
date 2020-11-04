@@ -3,6 +3,9 @@ defmodule SMTPProtocol do
   SMTP protocol helpers.
   """
 
+  @type reverse_params :: map()
+  @type forward_params :: map()
+
   @type command_kind ::
           :helo | :ehlo | :mail_from | :rcpt_to | :data | :rset | :noop | :quit | :vrfy
   @type command_extra :: String.t()

@@ -3,8 +3,8 @@ defmodule SMTPServer.Mail do
   defstruct [:reverse_path, :max_size, forward_paths: [], data: <<>>]
 
   @type t() :: %SMTPServer.Mail{
-          reverse_path: String.t(),
-          forward_paths: [String.t()],
+          reverse_path: {String.t(), SMTPProtocol.reverse_params()},
+          forward_paths: [{String.t(), SMTPProtocol.forward_params()}],
           max_size: integer | nil,
           data: binary
         }
