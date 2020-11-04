@@ -146,7 +146,7 @@ defmodule SMTPProtocol do
       with {:ok, map} <- acc do
         case String.split(part, "=", parts: 2) do
           [key, value] ->
-            insert_mail_param(side, map, key, value)
+            insert_mail_param(side, map, String.upcase(key, :ascii), value)
 
           _ ->
             {:error, "Invalid mail parameter"}

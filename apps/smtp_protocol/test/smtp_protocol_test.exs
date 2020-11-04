@@ -40,5 +40,10 @@ defmodule SMTPProtocolTest do
              ) ==
                {:ok, "a@b.com", %{body: :mime}}
     end
+
+    test "should be case insensitive with regards to param names" do
+      assert SMTPProtocol.parse_mail_params("sIZe=10", :mail) ==
+               {:ok, %{size: 10}}
+    end
   end
 end

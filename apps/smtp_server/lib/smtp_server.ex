@@ -41,6 +41,7 @@ defmodule SMTPServer do
   end
 
   defp accept(socket, client_template) do
+    # TODO(indutny): rate-limiting
     {:ok, remote} = :gen_tcp.accept(socket)
 
     {:ok, pid} =

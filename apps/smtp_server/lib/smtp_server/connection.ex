@@ -1,4 +1,6 @@
 defmodule SMTPServer.Connection do
+  require Logger
+
   alias SMTPServer.Connection
   alias SMTPServer.Mail
 
@@ -157,7 +159,8 @@ defmodule SMTPServer.Connection do
     {:response, state, 503, "Command out of sequence"}
   end
 
-  defp handle_line(_, state, _) do
+  defp handle_line(_, state, line) do
+    Logger.info("Unknown command #{line}")
     {:response, state, 502, "Command not implemented"}
   end
 
@@ -175,6 +178,7 @@ defmodule SMTPServer.Connection do
           reverse_path: reverse_path,
           max_size: max_size
         }
+
         {:ok, mail}
     end
   end
@@ -204,8 +208,22 @@ defmodule SMTPServer.Connection do
     case :gen_tcp.recv(conn.socket, 0, conn.read_timeout) do
       {:ok, line} ->
         case state do
-          {:data, _} -> line
-          _ -> line |> String.replace_trailing("\r\n", "")
+          {:data, _} ->
+            line
+
+          #
+          # 5231 4.1.1 - In the interest of improved interoperability, SMTP
+          # receivers SHOULD tolerate trailing white space before the
+          # terminating <CRLF>.
+          _ ->
+            line
+            |> String.trim_trailing()
+
+            # I'm not proud of it, but it simplifies code above
+            |> String.replace(
+              ~r/^(HELO|EHLO|MAIL FROM|RCPT TO|DATA|RSET|NOOP|QUIT|VRFY)/i,
+              fn part -> String.upcase(part, :ascii) end
+            )
         end
 
       {:error, :closed} ->
