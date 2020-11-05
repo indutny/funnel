@@ -90,6 +90,16 @@ defmodule SMTPServerTest do
     assert recv_line(socket) == "214 I'm so happy you asked"
   end
 
+  test "should not allow out of sequence DATA/RCPT TO", %{socket: socket} do
+    handshake(socket)
+
+    send_line(socket, "DATA")
+    assert recv_line(socket) == "503 Command out of sequence"
+
+    send_line(socket, "RCPT TO:<a@a.com>")
+    assert recv_line(socket) == "503 Command out of sequence"
+  end
+
   test "should enforce size limit", %{socket: socket} do
     handshake(socket)
 
@@ -117,6 +127,7 @@ defmodule SMTPServerTest do
     assert recv_line(socket) == "250 OK"
     send_line(socket, "DATA")
     assert recv_line(socket) == "354 Start mail input; end with <CRLF>.<CRLF>"
+
     send_line(socket, "Hey!")
     send_line(socket, "How are you?\n.")
     send_line(socket, ".")

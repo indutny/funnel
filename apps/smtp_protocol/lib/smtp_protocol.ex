@@ -9,7 +9,7 @@ defmodule SMTPProtocol do
   @type command_kind ::
           :helo | :ehlo | :mail_from | :rcpt_to | :data | :rset | :noop | :quit | :vrfy | :help
   @type command_extra :: String.t()
-  @type command_trailing :: String.t()
+  @type command_trailing :: :crlf | :lf
   @type command :: {command_kind(), command_extra(), command_trailing()}
 
   @commands %{
@@ -31,25 +31,31 @@ defmodule SMTPProtocol do
   ## Examples
 
       iex> SMTPProtocol.parse_command("EHLO domain\r\n")
-      {:ehlo, "domain", "\r\n"}
+      {:ehlo, "domain", :crlf}
 
       iex> SMTPProtocol.parse_command("MAIL FROM:<a@b.com> A=1 B=2\r\n")
-      {:mail_from, "<a@b.com> A=1 B=2", "\r\n"}
+      {:mail_from, "<a@b.com> A=1 B=2", :crlf}
 
       iex> SMTPProtocol.parse_command("RCPT TO:<a@b.com> A=1 B=2\r\n")
-      {:rcpt_to, "<a@b.com> A=1 B=2", "\r\n"}
+      {:rcpt_to, "<a@b.com> A=1 B=2", :crlf}
 
       iex> SMTPProtocol.parse_command("DATA\r\n")
-      {:data, "", "\r\n"}
+      {:data, "", :crlf}
 
   NOTE that for commands ending with "\n" it returns different trailing string
 
       iex> SMTPProtocol.parse_command("DATA\n")
-      {:data, "", "\n"}
+      {:data, "", :lf}
   """
   @spec parse_command(String.t()) :: command() | {:unknown, String.t()}
   def parse_command(line) do
     [_, line, tail] = Regex.run(~r/^(.*?)\s*?(\r\n|\n)$/, line)
+
+    tail =
+      case tail do
+        "\r\n" -> :crlf
+        "\n" -> :lf
+      end
 
     # 5231 4.1.1 - In the interest of improved interoperability, SMTP
     # receivers SHOULD tolerate trailing white space before the

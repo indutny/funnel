@@ -5,7 +5,7 @@ defmodule SMTPProtocolTest do
   describe "parse_command" do
     test "should be case insensitive" do
       assert SMTPProtocol.parse_command("hElO domain\r\n") ==
-               {:helo, "domain", "\r\n"}
+               {:helo, "domain", :crlf}
     end
 
     test "should require domain for HELO" do
@@ -14,11 +14,11 @@ defmodule SMTPProtocolTest do
     end
 
     test "should not require domain for EHLO" do
-      assert SMTPProtocol.parse_command("EHLO\r\n") == {:ehlo, "", "\r\n"}
+      assert SMTPProtocol.parse_command("EHLO\r\n") == {:ehlo, "", :crlf}
     end
 
     test "should ignore whitespace before CRLF" do
-      assert SMTPProtocol.parse_command("EHLO  \t \r\n") == {:ehlo, "", "\r\n"}
+      assert SMTPProtocol.parse_command("EHLO  \t \r\n") == {:ehlo, "", :crlf}
     end
   end
 

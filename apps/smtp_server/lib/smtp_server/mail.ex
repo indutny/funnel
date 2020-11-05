@@ -41,16 +41,11 @@ defmodule SMTPServer.Mail do
     byte_size(mail.data)
   end
 
-  def has_trailing_crlf?(mail) do
-    size = byte_size(mail.data)
-    "\r\n" == binary_part(mail.data, size, -min(2, size))
-  end
-
   @doc """
   Removes trailing CRLF from the mail's data.
   """
   def trim_trailing_crlf(mail) do
-    true = has_trailing_crlf?(mail)
+    true = String.ends_with?(mail.data, "\r\n")
     trimmed_data = binary_part(mail.data, 0, byte_size(mail.data) - 2)
 
     %Mail{

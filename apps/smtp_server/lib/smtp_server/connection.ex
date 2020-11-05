@@ -23,7 +23,7 @@ defmodule SMTPServer.Connection do
           read_timeout: integer()
         }
 
-  @type state() :: :handshake | :main | {:rcpt, Mail} | {:data, Mail}
+  @type state() :: :handshake | :main | {:rcpt, Mail} | {:data, Mail, :crlf | :lf}
 
   @type line_response ::
           {:no_response, state()}
@@ -43,9 +43,10 @@ defmodule SMTPServer.Connection do
     respond(conn, "220 #{conn.local_domain}")
 
     loop(:handshake, %Connection{
-      conn |
-      remote_addr: remote_addr,
-      remote_domain: remote_domain})
+      conn
+      | remote_addr: remote_addr,
+        remote_domain: remote_domain
+    })
   end
 
   defp loop(state, conn) do
@@ -141,46 +142,59 @@ defmodule SMTPServer.Connection do
     end
   end
 
-  defp handle_line(_, {:rcpt, mail}, {:data, "", crlf}) do
+  defp handle_line(_, {:rcpt, mail}, {:data, "", trailing}) do
     if Enum.empty?(mail.forward_paths) do
       {:response, {:rcpt, mail}, 554, "No valid recipients"}
     else
-      mail = Mail.add_data(mail, crlf)
-      {:response, {:data, mail}, 354, "Start mail input; end with <CRLF>.<CRLF>"}
+      {:response, {:data, mail, trailing}, 354, "Start mail input; end with <CRLF>.<CRLF>"}
     end
   end
 
-  defp handle_line(_, {:data, mail}, data = ".\r\n") do
-    case {Mail.has_trailing_crlf?(mail), Mail.has_exceeded_size?(mail)} do
-      {_, true} ->
-        Logger.info("Mail size exceeded")
-        {:response, :main, 552, "Mail exceeds maximum allowed size"}
+  defp handle_line(_, {:data, mail, last_trailing}, data = ".\r\n") do
+    case last_trailing do
+      :crlf ->
+        if Mail.has_exceeded_size?(mail) do
+          Logger.info("Mail size exceeded")
+          {:response, :main, 552, "Mail exceeds maximum allowed size"}
+        else
+          Logger.info("Got new mail")
+          :ok = process_mail(mail)
+          {:response, :main, 250, "OK"}
+        end
 
-      {false, _} ->
-        # No trailing CRLF
-        {:no_response, {:data, Mail.add_data(mail, data)}}
-
-      {true, _} ->
-        process_mail(mail)
-        {:response, :main, 250, "OK"}
+      :lf ->
+        {:no_response, {:data, Mail.add_data(mail, data), :crlf}}
     end
   end
 
-  defp handle_line(_, {:data, mail}, data) do
-    {:no_response, {:data, Mail.add_data(mail, data)}}
+  defp handle_line(_, {:data, mail, _}, data) do
+    trailing =
+      if String.ends_with?(data, "\r\n") do
+        :crlf
+      else
+        :lf
+      end
+
+    {:no_response, {:data, Mail.add_data(mail, data), trailing}}
   end
 
-  defp handle_line(_, state, {:data, ""}) do
+  defp handle_line(_, state, {:data, "", _}) do
     {:response, state, 503, "Command out of sequence"}
   end
 
-  defp handle_line(_, state, {:rcpt_to, _}) do
+  defp handle_line(_, state, {:rcpt_to, _, _}) do
     {:response, state, 503, "Command out of sequence"}
   end
 
   defp handle_line(_, state, {:unknown, line}) do
     Logger.info("Unknown command #{line}")
     {:response, state, 502, "Command not implemented"}
+  end
+
+  defp handle_line(conn, _, _) do
+    respond(conn, "451 Server error")
+    :gen_tcp.shutdown(conn.socket, :write)
+    :exit
   end
 
   @spec receive_reverse_path(t(), String.t(), map()) ::
@@ -229,9 +243,10 @@ defmodule SMTPServer.Connection do
   defp get_line(conn, state) do
     case :gen_tcp.recv(conn.socket, 0, conn.read_timeout) do
       {:ok, line} ->
-        Logger.debug("#{conn.remote_domain} < #{line}")
+        Logger.debug("#{conn.remote_domain} < #{String.trim_trailing(line)}")
+
         case state do
-          {:data, _} ->
+          {:data, _, _} ->
             line
 
           _ ->
@@ -246,6 +261,7 @@ defmodule SMTPServer.Connection do
 
   defp respond(conn, line) do
     Logger.debug("#{conn.remote_domain} > #{line}")
+
     case :gen_tcp.send(conn.socket, line <> "\r\n") do
       :ok ->
         :ok
