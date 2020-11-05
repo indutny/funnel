@@ -1,4 +1,6 @@
 defmodule SMTPServer.Mail do
+  require Logger
+
   @enforce_keys [:reverse_path, :max_size]
   defstruct [:reverse_path, :max_size, forward_paths: [], data: <<>>]
 
@@ -22,9 +24,10 @@ defmodule SMTPServer.Mail do
   Appends data to the mail's buffer.
   """
   def add_data(mail, data) do
-    if byte_size(mail.data) >= mail.max_size do
-      # Discard whole data on overflow
-      %Mail{mail | data: <<>>}
+    # NOTE: taking trailing CRLF in account
+    if byte_size(mail.data) + 2 > mail.max_size do
+      Logger.info("Mail data overflow from #{inspect(mail.reverse_path)}")
+      mail
     else
       %Mail{mail | data: mail.data <> data}
     end
@@ -37,20 +40,17 @@ defmodule SMTPServer.Mail do
     byte_size(mail.data)
   end
 
+  def has_trailing_crlf?(mail) do
+    size = byte_size(mail.data)
+    "\r\n" == binary_part(mail.data, size, -min(2, size))
+  end
+
   @doc """
-  Removes trailing CRLF/LF from the mail's data.
+  Removes trailing CRLF from the mail's data.
   """
   def trim_trailing_crlf(mail) do
-    size = byte_size(mail.data)
-
-    tail = binary_part(mail.data, size, -min(2, size))
-
-    trimmed_data =
-      case tail do
-        "\r\n" -> binary_part(mail.data, 0, size - 2)
-        <<_, ?\n>> -> binary_part(mail.data, 0, size - 1)
-        _ -> mail.data
-      end
+    true = has_trailing_crlf?(mail)
+    trimmed_data = binary_part(mail.data, 0, byte_size(mail.data) - 2)
 
     %Mail{
       mail

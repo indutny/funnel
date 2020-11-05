@@ -108,7 +108,7 @@ defmodule SMTPServerTest do
     send_line(socket, "DATA")
     assert recv_line(socket) == "354 Start mail input; end with <CRLF>.<CRLF>"
     send_line(socket, "Hey!")
-    send_line(socket, "How are you?")
+    send_line(socket, "How are you?\n.")
     send_line(socket, ".")
   end
 

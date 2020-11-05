@@ -60,29 +60,29 @@ defmodule SMTPServer.Connection do
   @spec handle_line(t(), state(), SMTPProtocol.command()) :: line_response()
   defp handle_line(conn, state, line)
 
-  defp handle_line(_, :handshake, {:rset, ""}) do
+  defp handle_line(_, :handshake, {:rset, "", _}) do
     {:response, :handshake, 250, "OK"}
   end
 
-  defp handle_line(_, _, {:rset, ""}) do
+  defp handle_line(_, _, {:rset, "", _}) do
     {:response, :main, 250, "OK"}
   end
 
-  defp handle_line(_, state, {:noop, ""}) do
+  defp handle_line(_, state, {:noop, "", _}) do
     {:response, state, 250, "OK"}
   end
 
-  defp handle_line(conn, _, {:quit, ""}) do
+  defp handle_line(conn, _, {:quit, "", _}) do
     respond(conn, "221 OK")
     :gen_tcp.shutdown(conn.socket, :write)
     :exit
   end
 
-  defp handle_line(_, :handshake, {:helo, _domain}) do
+  defp handle_line(_, :handshake, {:helo, _domain, _}) do
     {:response, :main, 250, "OK"}
   end
 
-  defp handle_line(conn, :handshake, {:ehlo, _domain}) do
+  defp handle_line(conn, :handshake, {:ehlo, _domain, _}) do
     respond(conn, "250-#{conn.local_domain} greets #{conn.remote_domain}")
     # TODO(indutny): STARTTLS
     respond(conn, "250-8BITMIME")
@@ -91,12 +91,12 @@ defmodule SMTPServer.Connection do
     {:response, :main, 250, "SMTPUTF8"}
   end
 
-  defp handle_line(_, :main, {:vrfy, _}) do
+  defp handle_line(_, :main, {:vrfy, _, _}) do
     # Not really supported
     {:response, :main, 252, "I will be happy to accept your message"}
   end
 
-  defp handle_line(conn, :main, {:mail_from, reverse_path}) do
+  defp handle_line(conn, :main, {:mail_from, reverse_path, _}) do
     case SMTPProtocol.parse_mail_and_params(reverse_path, :mail) do
       {:ok, reverse_path, params} ->
         case receive_reverse_path(conn, reverse_path, params) do
@@ -112,7 +112,7 @@ defmodule SMTPServer.Connection do
     end
   end
 
-  defp handle_line(conn, {:rcpt, mail}, {:rcpt_to, forward_path}) do
+  defp handle_line(conn, {:rcpt, mail}, {:rcpt_to, forward_path, _}) do
     case SMTPProtocol.parse_mail_and_params(forward_path, :rcpt) do
       {:ok, forward_path, params} ->
         {:ok, new_mail} = receive_forward_path(conn, mail, forward_path, params)
@@ -123,20 +123,27 @@ defmodule SMTPServer.Connection do
     end
   end
 
-  defp handle_line(_, {:rcpt, mail}, {:data, ""}) do
+  defp handle_line(_, {:rcpt, mail}, {:data, "", crlf}) do
     if Enum.empty?(mail.forward_paths) do
       {:response, {:rcpt, mail}, 554, "No valid recipients"}
     else
+      mail = Mail.add_data(mail, crlf)
       {:response, {:data, mail}, 354, "Start mail input; end with <CRLF>.<CRLF>"}
     end
   end
 
-  defp handle_line(_, {:data, mail}, ".\r\n") do
-    if Mail.data_size(mail) > mail.max_size do
-      {:response, :main, 552, "Mail exceeds maximum allowed size"}
-    else
-      process_mail(mail)
-      {:response, :main, 250, "OK"}
+  defp handle_line(_, {:data, mail}, data = ".\r\n") do
+    case {Mail.has_trailing_crlf?(mail), Mail.data_size(mail)} do
+      {_, size} when size > mail.max_size ->
+        {:response, :main, 552, "Mail exceeds maximum allowed size"}
+
+      {false, _} ->
+        # No trailing CRLF
+        {:no_response, {:data, Mail.add_data(mail, data)}}
+
+      {true, _} ->
+        process_mail(mail)
+        {:response, :main, 250, "OK"}
     end
   end
 
@@ -207,13 +214,8 @@ defmodule SMTPServer.Connection do
           {:data, _} ->
             line
 
-          #
-          # 5231 4.1.1 - In the interest of improved interoperability, SMTP
-          # receivers SHOULD tolerate trailing white space before the
-          # terminating <CRLF>.
           _ ->
             line
-            |> String.trim_trailing()
             |> SMTPProtocol.parse_command()
         end
 
