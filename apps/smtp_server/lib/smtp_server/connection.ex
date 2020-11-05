@@ -38,6 +38,8 @@ defmodule SMTPServer.Connection do
     {:ok, {remote_addr, _}} = :inet.sockname(conn.socket)
     {:ok, {:hostent, remote_domain, _, _, _, _}} = :inet.gethostbyaddr(remote_addr)
 
+    Logger.info("Received new connection from #{remote_domain}")
+
     respond(conn, "220 #{conn.local_domain}")
 
     loop(:handshake, %Connection{
@@ -151,6 +153,7 @@ defmodule SMTPServer.Connection do
   defp handle_line(_, {:data, mail}, data = ".\r\n") do
     case {Mail.has_trailing_crlf?(mail), Mail.data_size(mail)} do
       {_, size} when size > mail.max_size ->
+        Logger.info("Mail size exceeded #{size} > #{mail.max_size}")
         {:response, :main, 552, "Mail exceeds maximum allowed size"}
 
       {false, _} ->
@@ -226,6 +229,7 @@ defmodule SMTPServer.Connection do
   defp get_line(conn, state) do
     case :gen_tcp.recv(conn.socket, 0, conn.read_timeout) do
       {:ok, line} ->
+        Logger.debug("#{conn.remote_address} < #{line}")
         case state do
           {:data, _} ->
             line
@@ -241,6 +245,7 @@ defmodule SMTPServer.Connection do
   end
 
   defp respond(conn, line) do
+    Logger.debug("#{conn.remote_address} > #{line}")
     case :gen_tcp.send(conn.socket, line <> "\r\n") do
       :ok ->
         :ok
