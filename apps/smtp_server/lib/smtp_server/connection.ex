@@ -35,7 +35,7 @@ defmodule SMTPServer.Connection do
   """
   @spec serve(t()) :: :ok
   def serve(conn) do
-    {:ok, {remote_addr, _}} = :inet.sockname(conn.socket)
+    {:ok, {remote_addr, _}} = :inet.peername(conn.socket)
     {:ok, {:hostent, remote_domain, _, _, _, _}} = :inet.gethostbyaddr(remote_addr)
 
     Logger.info("Received new connection from #{remote_domain}")
