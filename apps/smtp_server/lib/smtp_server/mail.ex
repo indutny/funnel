@@ -11,10 +11,16 @@ defmodule SMTPServer.Mail do
           data: binary
         }
 
+  @doc """
+  Adds new forward path to the mail.
+  """
   def add_forward_path(mail, forward_path) do
     %Mail{mail | forward_paths: [forward_path | mail.forward_paths]}
   end
 
+  @doc """
+  Appends data to the mail's buffer.
+  """
   def add_data(mail, data) do
     if byte_size(mail.data) >= mail.max_size do
       # Discard whole data on overflow
@@ -24,10 +30,16 @@ defmodule SMTPServer.Mail do
     end
   end
 
+  @doc """
+  Returns byte size of the mail's data.
+  """
   def data_size(mail) do
     byte_size(mail.data)
   end
 
+  @doc """
+  Removes trailing CRLF/LF from the mail's data.
+  """
   def trim_trailing_crlf(mail) do
     size = byte_size(mail.data)
 
