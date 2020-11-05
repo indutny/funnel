@@ -16,6 +16,10 @@ defmodule Funnel.MixProject do
   #
   # Run "mix help deps" for examples and options.
   defp deps do
-    []
+    [
+      # TODO(indutny): use to limit concurrency when reaching out to external
+      # servers.
+      {:poolboy, "~> 1.5.1"},
+    ]
   end
 end
