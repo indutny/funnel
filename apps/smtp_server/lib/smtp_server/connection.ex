@@ -229,7 +229,7 @@ defmodule SMTPServer.Connection do
   defp get_line(conn, state) do
     case :gen_tcp.recv(conn.socket, 0, conn.read_timeout) do
       {:ok, line} ->
-        Logger.debug("#{conn.remote_addr} < #{line}")
+        Logger.debug("#{conn.remote_domain} < #{line}")
         case state do
           {:data, _} ->
             line
@@ -245,7 +245,7 @@ defmodule SMTPServer.Connection do
   end
 
   defp respond(conn, line) do
-    Logger.debug("#{conn.remote_addr} > #{line}")
+    Logger.debug("#{conn.remote_domain} > #{line}")
     case :gen_tcp.send(conn.socket, line <> "\r\n") do
       :ok ->
         :ok
