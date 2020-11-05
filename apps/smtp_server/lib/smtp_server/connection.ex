@@ -190,6 +190,8 @@ defmodule SMTPServer.Connection do
 
   @spec process_mail(Mail.t()) :: :ok
   defp process_mail(mail) do
+    mail = Mail.trim_trailing_crlf(mail)
+
     IO.inspect(mail)
     :ok
   end

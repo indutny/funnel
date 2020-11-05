@@ -2,7 +2,9 @@ defmodule SMTPServer.Mail do
   @enforce_keys [:reverse_path, :max_size]
   defstruct [:reverse_path, :max_size, forward_paths: [], data: <<>>]
 
-  @type t() :: %SMTPServer.Mail{
+  alias SMTPServer.Mail
+
+  @type t() :: %Mail{
           reverse_path: {String.t(), SMTPProtocol.reverse_params()},
           forward_paths: [{String.t(), SMTPProtocol.forward_params()}],
           max_size: integer | nil,
@@ -10,19 +12,37 @@ defmodule SMTPServer.Mail do
         }
 
   def add_forward_path(mail, forward_path) do
-    %SMTPServer.Mail{mail | forward_paths: [forward_path | mail.forward_paths]}
+    %Mail{mail | forward_paths: [forward_path | mail.forward_paths]}
   end
 
   def add_data(mail, data) do
     if byte_size(mail.data) >= mail.max_size do
       # Discard whole data on overflow
-      %SMTPServer.Mail{mail | data: <<>>}
+      %Mail{mail | data: <<>>}
     else
-      %SMTPServer.Mail{mail | data: mail.data <> data}
+      %Mail{mail | data: mail.data <> data}
     end
   end
 
   def data_size(mail) do
     byte_size(mail.data)
+  end
+
+  def trim_trailing_crlf(mail) do
+    size = byte_size(mail.data)
+
+    tail = binary_part(mail.data, size, -min(2, size))
+
+    trimmed_data =
+      case tail do
+        "\r\n" -> binary_part(mail.data, 0, size - 2)
+        <<_, ?\n>> -> binary_part(mail.data, 0, size - 1)
+        _ -> mail.data
+      end
+
+    %Mail{
+      mail
+      | data: trimmed_data
+    }
   end
 end
