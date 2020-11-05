@@ -1,6 +1,4 @@
 defmodule SMTPServer.Mail do
-  require Logger
-
   @enforce_keys [:reverse_path, :max_size]
   defstruct [:reverse_path, :max_size, forward_paths: [], data: <<>>]
 
@@ -24,13 +22,16 @@ defmodule SMTPServer.Mail do
   Appends data to the mail's buffer.
   """
   def add_data(mail, data) do
-    # NOTE: taking trailing CRLF in account
-    if byte_size(mail.data) + 2 > mail.max_size do
-      Logger.info("Mail data overflow from #{inspect(mail.reverse_path)}")
+    if has_exceeded_size?(mail) do
       mail
     else
       %Mail{mail | data: mail.data <> data}
     end
+  end
+
+  def has_exceeded_size?(mail) do
+    # NOTE: taking trailing CRLF in account and allow a bit of leeway.
+    byte_size(mail.data) > mail.max_size + 2 + 1024
   end
 
   @doc """

@@ -151,9 +151,9 @@ defmodule SMTPServer.Connection do
   end
 
   defp handle_line(_, {:data, mail}, data = ".\r\n") do
-    case {Mail.has_trailing_crlf?(mail), Mail.data_size(mail)} do
-      {_, size} when size > mail.max_size ->
-        Logger.info("Mail size exceeded #{size} > #{mail.max_size}")
+    case {Mail.has_trailing_crlf?(mail), Mail.has_exceeded_size?(mail)} do
+      {_, true} ->
+        Logger.info("Mail size exceeded")
         {:response, :main, 552, "Mail exceeds maximum allowed size"}
 
       {false, _} ->
