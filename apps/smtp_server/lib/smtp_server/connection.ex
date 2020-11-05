@@ -7,6 +7,7 @@ defmodule SMTPServer.Connection do
   @enforce_keys [:local_domain, :max_mail_size]
   defstruct [
     :local_domain,
+    :remote_addr,
     :remote_domain,
     :max_mail_size,
     :socket,
@@ -15,6 +16,7 @@ defmodule SMTPServer.Connection do
 
   @type t() :: %Connection{
           local_domain: String.t(),
+          remote_addr: :inet.ip_address(),
           remote_domain: String.t(),
           max_mail_size: integer,
           socket: nil | :gen_tcp.socket(),
@@ -38,7 +40,10 @@ defmodule SMTPServer.Connection do
 
     respond(conn, "220 #{conn.local_domain}")
 
-    loop(:handshake, %Connection{conn | remote_domain: remote_domain})
+    loop(:handshake, %Connection{
+      conn |
+      remote_addr: remote_addr,
+      remote_domain: remote_domain})
   end
 
   defp loop(state, conn) do
