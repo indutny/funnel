@@ -80,6 +80,16 @@ defmodule SMTPServerTest do
     assert is_closed(socket)
   end
 
+  test "should support VRFY and HELP", %{socket: socket} do
+    handshake(socket)
+
+    send_line(socket, "VRFY something")
+    assert recv_line(socket) == "252 I will be happy to accept your message"
+
+    send_line(socket, "HELP something")
+    assert recv_line(socket) == "214 I'm so happy you asked"
+  end
+
   test "should enforce size limit", %{socket: socket} do
     handshake(socket)
 

@@ -7,7 +7,7 @@ defmodule SMTPProtocol do
   @type forward_params :: map()
 
   @type command_kind ::
-          :helo | :ehlo | :mail_from | :rcpt_to | :data | :rset | :noop | :quit | :vrfy
+          :helo | :ehlo | :mail_from | :rcpt_to | :data | :rset | :noop | :quit | :vrfy | :help
   @type command_extra :: String.t()
   @type command_trailing :: String.t()
   @type command :: {command_kind(), command_extra(), command_trailing()}
@@ -21,7 +21,8 @@ defmodule SMTPProtocol do
     ~r/^RSET(\s|$)/i => :rset,
     ~r/^NOOP(\s|$)/i => :noop,
     ~r/^QUIT(\s|$)/i => :quit,
-    ~r/^VRFY(\s|$)/i => :vrfy
+    ~r/^VRFY(\s|$)/i => :vrfy,
+    ~r/^HELP(\s|$)/i => :help
   }
 
   @doc ~S"""
@@ -148,7 +149,7 @@ defmodule SMTPProtocol do
   but not for `rcpt-parameters`:
 
       iex> SMTPProtocol.parse_mail_params("SIZE=a", :rcpt)
-      {:error, "Unknown mail parameter"}
+      {:error, :unknown_param}
 
   and duplicate values wouldn't be allowed:
 
@@ -158,7 +159,7 @@ defmodule SMTPProtocol do
   just as unknown or incorrect parameters:
 
       iex> SMTPProtocol.parse_mail_params("A=42", :mail)
-      {:error, "Unknown mail parameter"}
+      {:error, :unknown_param}
 
       iex> SMTPProtocol.parse_mail_params("B", :mail)
       {:error, "Invalid mail parameter"}
@@ -247,6 +248,6 @@ defmodule SMTPProtocol do
   end
 
   defp parse_mail_param(_, _, _) do
-    {:error, "Unknown mail parameter"}
+    {:error, :unknown_param}
   end
 end

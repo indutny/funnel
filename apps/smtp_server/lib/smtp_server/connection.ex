@@ -96,6 +96,11 @@ defmodule SMTPServer.Connection do
     {:response, :main, 252, "I will be happy to accept your message"}
   end
 
+  defp handle_line(_, :main, {:help, _, _}) do
+    # Not really supported
+    {:response, :main, 214, "I'm so happy you asked"}
+  end
+
   defp handle_line(conn, :main, {:mail_from, reverse_path, _}) do
     case SMTPProtocol.parse_mail_and_params(reverse_path, :mail) do
       {:ok, reverse_path, params} ->
@@ -107,6 +112,9 @@ defmodule SMTPServer.Connection do
             {:response, :main, 552, "Mail exceeds maximum allowed size"}
         end
 
+      {:error, :unknown_param} ->
+        {:response, :main, 555, "MAIL FROM parameters not recognized or not implemented"}
+
       {:error, msg} ->
         {:response, :main, 553, msg}
     end
@@ -117,6 +125,9 @@ defmodule SMTPServer.Connection do
       {:ok, forward_path, params} ->
         {:ok, new_mail} = receive_forward_path(conn, mail, forward_path, params)
         {:response, {:rcpt, new_mail}, 250, "OK"}
+
+      {:error, :unknown_param} ->
+        {:response, :main, 555, "RCPT TO parameters not recognized or not implemented"}
 
       {:error, msg} ->
         {:response, {:rcpt, mail}, 553, msg}

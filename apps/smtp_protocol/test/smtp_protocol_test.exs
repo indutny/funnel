@@ -25,7 +25,7 @@ defmodule SMTPProtocolTest do
   describe "parse_mail_params" do
     test "should not allow SIZE parameter in RCPT" do
       assert SMTPProtocol.parse_mail_params("SIZE=10", :rcpt) ==
-               {:error, "Unknown mail parameter"}
+               {:error, :unknown_param}
     end
 
     test "should parse ALT-ADDRESS in both MAIL and RCPT" do
