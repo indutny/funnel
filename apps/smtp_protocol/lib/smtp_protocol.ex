@@ -5,6 +5,7 @@ defmodule SMTPProtocol do
 
   @type reverse_params :: map()
   @type forward_params :: map()
+  @type mail_path :: :null | :postmaster | String.t()
 
   @type command_kind ::
           :helo | :ehlo | :mail_from | :rcpt_to | :data | :rset | :noop | :quit | :vrfy | :help
@@ -116,23 +117,47 @@ defmodule SMTPProtocol do
   Empty email addresses are used to notify sender of delivery failure:
 
       iex> SMTPProtocol.parse_mail_path("<>", :mail)
-      {:ok, ""}
+      {:ok, :null}
 
   but can't be a recipient of the email:
 
       iex> SMTPProtocol.parse_mail_path("<>", :rcpt)
       {:error, "Forward path can't be empty"}
 
+  Postmaster is of course a special mailbox that we must support:
+
+      iex> SMTPProtocol.parse_mail_path("<Postmaster>", :rcpt)
+      {:ok, :postmaster}
+
+      iex> SMTPProtocol.parse_mail_path("<Postmaster>", :mail)
+      {:error, "Postmaster can't be the reverse-path"}
   """
   @spec parse_mail_path(String.t(), :mail | :rcpt) ::
-          {:ok, String.t()} | {:error, String.t()}
+          {:ok, mail_path()} | {:error, String.t()}
   def parse_mail_path(path, side) do
     # TODO(indutny): parse it properly sometime
-    case {side, Regex.run(~r/^<(.*:)?([^@:]+@[^@:]+)>$|^<>$/, path)} do
-      {_, nil} -> {:error, "Invalid mail path"}
-      {:rcpt, ["<>"]} -> {:error, "Forward path can't be empty"}
-      {:mail, ["<>"]} -> {:ok, ""}
-      {_, [_, _, mailbox]} -> {:ok, mailbox}
+    cond do
+      path =~ ~r/^<postmaster(@.*)?>$/i ->
+        case side do
+          :mail -> {:error, "Postmaster can't be the reverse-path"}
+          :rcpt -> {:ok, :postmaster}
+        end
+
+      path == "<>" ->
+        case side do
+          :mail ->
+            {:ok, :null}
+          :rcpt ->
+            {:error, "Forward path can't be empty"}
+        end
+
+      true ->
+        case Regex.run(~r/^<(.*:)?([^@:]+@[^@:]+)>$/, path) do
+          nil ->
+            {:error, "Invalid mail path"}
+          [_, _, mailbox] ->
+            {:ok, mailbox}
+        end
     end
   end
 
