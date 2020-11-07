@@ -147,6 +147,7 @@ defmodule SMTPProtocol do
         case side do
           :mail ->
             {:ok, :null}
+
           :rcpt ->
             {:error, "Forward path can't be empty"}
         end
@@ -155,6 +156,7 @@ defmodule SMTPProtocol do
         case Regex.run(~r/^<(.*:)?([^@:]+@[^@:]+)>$/, path) do
           nil ->
             {:error, "Invalid mail path"}
+
           [_, _, mailbox] ->
             {:ok, mailbox}
         end

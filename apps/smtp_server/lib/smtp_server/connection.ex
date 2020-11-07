@@ -150,24 +150,23 @@ defmodule SMTPServer.Connection do
     end
   end
 
-  defp handle_line(_, {:data, mail, last_trailing}, data = ".\r\n") do
-    case last_trailing do
-      :crlf ->
-        if Mail.has_exceeded_size?(mail) do
-          Logger.info("Mail size exceeded")
-          {:response, :main, 552, "Mail exceeds maximum allowed size"}
-        else
-          Logger.info("Got new mail")
-          :ok = process_mail(mail)
-          {:response, :main, 250, "OK"}
-        end
-
-      :lf ->
-        {:no_response, {:data, Mail.add_data(mail, data), :crlf}}
+  defp handle_line(_, {:data, mail, :crlf}, ".\r\n") do
+    if Mail.has_exceeded_size?(mail) do
+      Logger.info("Mail size exceeded")
+      {:response, :main, 552, "Mail exceeds maximum allowed size"}
+    else
+      Logger.info("Got new mail")
+      :ok = process_mail(mail)
+      {:response, :main, 250, "OK"}
     end
   end
 
   defp handle_line(_, {:data, mail, _}, data) do
+    data =
+      with "." <> stripped <- data do
+        stripped
+      end
+
     trailing =
       if String.ends_with?(data, "\r\n") do
         :crlf

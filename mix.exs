@@ -24,7 +24,7 @@ defmodule Funnel.MixProject do
       # server?
       {:ssl_verify_fun, "~> 1.1"},
       # TODO(indutny): use this for better TCP server performance.
-      {:ranch, "~> 2.0"},
+      {:ranch, "~> 2.0"}
     ]
   end
 end
