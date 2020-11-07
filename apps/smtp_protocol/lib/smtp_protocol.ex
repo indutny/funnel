@@ -111,6 +111,9 @@ defmodule SMTPProtocol do
       iex> SMTPProtocol.parse_mail_path("<@b, @c:hello@world.com>", :mail)
       {:ok, "hello@world.com"}
 
+      iex> SMTPProtocol.parse_mail_path("<why spaces@gmail.com>", :mail)
+      {:error, "Invalid mail path"}
+
       iex> SMTPProtocol.parse_mail_path("<not an email>", :mail)
       {:error, "Invalid mail path"}
 
@@ -153,7 +156,7 @@ defmodule SMTPProtocol do
         end
 
       true ->
-        case Regex.run(~r/^<(.*:)?([^@:]+@[^@:]+)>$/, path) do
+        case Regex.run(~r/^<(.*:)?([^@\s:]+@[^@\s:]+)>$/, path) do
           nil ->
             {:error, "Invalid mail path"}
 
