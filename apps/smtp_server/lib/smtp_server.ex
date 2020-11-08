@@ -13,7 +13,7 @@ defmodule SMTPServer do
     @type t :: %Config{
             local_domain: :inet.hostname(),
             max_mail_size: non_neg_integer(),
-            read_timeout: non_neg_integer(),
+            read_timeout: timeout(),
             port: non_neg_integer()
           }
   end
