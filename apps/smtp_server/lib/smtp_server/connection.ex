@@ -189,7 +189,7 @@ defmodule SMTPServer.Connection do
       Logger.info("Got new mail")
 
       mail = Mail.trim_trailing_crlf(mail)
-      SMTPServer.MailScheduler.schedule(config.mail_scheduler, mail)
+      :ok = SMTPServer.MailScheduler.schedule(config.mail_scheduler, mail)
 
       {:response, :main, 250, "OK"}
     end

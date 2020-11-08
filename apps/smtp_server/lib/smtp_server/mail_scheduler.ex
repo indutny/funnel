@@ -10,13 +10,36 @@ defmodule SMTPServer.MailScheduler do
     GenServer.start_link(__MODULE__, :ok, opts)
   end
 
-  @spec schedule(t(), Mail.t()) :: nil
-  def schedule(_server, mail) do
-    IO.inspect(mail)
+  @spec schedule(t(), Mail.t()) :: :ok
+  def schedule(server, mail) do
+    GenServer.call(server, {:schedule, mail})
   end
+
+  @spec pop(t()) :: :ok
+  def pop(server) do
+    GenServer.call(server, :pop)
+  end
+
+  # GenServer implementation
 
   @impl true
   def init(:ok) do
-    {:ok, :ok}
+    {:ok, :queue.new()}
+  end
+
+  @impl true
+  def handle_call({:schedule, mail}, _from, queue) do
+    {:reply, :ok, :queue.in(mail, queue)}
+  end
+
+  @impl true
+  def handle_call(:pop, _from, queue) do
+    case :queue.out(queue) do
+      {{:value, mail}, queue} ->
+        {:reply, {:mail, mail}, queue}
+
+      {:empty, queue} ->
+        {:reply, :empty, queue}
+    end
   end
 end

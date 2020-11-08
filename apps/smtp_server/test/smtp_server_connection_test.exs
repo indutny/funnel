@@ -3,6 +3,7 @@ defmodule SMTPServerConnectionTest do
   doctest SMTPServer.Connection
 
   alias SMTPServer.Connection
+  alias SMTPServer.MailScheduler
 
   @moduletag capture_log: true
   @max_mail_size 1024
@@ -132,6 +133,16 @@ defmodule SMTPServerConnectionTest do
              :no_response,
              @ok
            ]
+
+    {:mail, mail} = MailScheduler.pop(MailScheduler)
+    assert mail.reverse == {"spam@example.com", %{size: 100}}
+
+    assert mail.forward == [
+             {"b@funnel.example", %{}},
+             {"a@funnel.example", %{}}
+           ]
+
+    assert mail.data == "Hey!\r\nHow are you?\n."
   end
 
   # Helpers
