@@ -5,7 +5,7 @@ defmodule SMTPServer.MailScheduler do
 
   @type t :: GenServer.server()
 
-  @spec start_link(GenServer.options()) :: {:ok, t()}
+  @spec start_link(GenServer.options()) :: GenServer.on_start()
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, :ok, opts)
   end

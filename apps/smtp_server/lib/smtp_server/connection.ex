@@ -42,7 +42,7 @@ defmodule SMTPServer.Connection do
 
   # Public API
 
-  @spec start_link(Config.t(), GenServer.options()) :: {:ok, t()}
+  @spec start_link(Config.t(), GenServer.options()) :: GenServer.on_start()
   def start_link(config, opts \\ []) do
     GenServer.start_link(__MODULE__, config, opts)
   end
