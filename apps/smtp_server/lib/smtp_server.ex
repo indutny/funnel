@@ -3,19 +3,16 @@ defmodule SMTPServer do
   use Task, restart: :permanent
 
   defmodule Config do
-    defstruct local_domain: "funnel.localhost",
-              max_mail_size: 30 * 1024 * 1024,
-              # 5 minutes,
-              read_timeout: 5 * 60 * 1000,
-              port: 0,
-              max_line_size: 1024
+    use TypedStruct
 
-    @type t :: %Config{
-            local_domain: :inet.hostname(),
-            max_mail_size: non_neg_integer(),
-            read_timeout: timeout(),
-            port: non_neg_integer()
-          }
+    typedstruct do
+      field :local_domain, :inet.hostname(), default: "funnel.localhost"
+      field :max_mail_size, non_neg_integer(), default: 30 * 1024 * 1024
+      # 5 minutes
+      field :read_timeout, timeout(), default: 5 * 60 * 1000
+      field :port, non_neg_integer(), default: 0
+      field :max_line_size, non_neg_integer(), default: 1024
+    end
   end
 
   alias SMTPServer.Connection

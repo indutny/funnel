@@ -1,14 +1,13 @@
 defmodule SMTPProtocol.Mail do
-  @enforce_keys [:reverse]
-  defstruct [:reverse, forward: [], data: <<>>]
+  use TypedStruct
+
+  typedstruct do
+    field :reverse, {String.t(), SMTPProtocol.reverse_params()}, enforce: true
+    field :forward, [{String.t(), SMTPProtocol.forward_params()}], default: []
+    field :data, binary(), default: <<>>
+  end
 
   alias SMTPProtocol.Mail
-
-  @type t() :: %Mail{
-          reverse: {String.t(), SMTPProtocol.reverse_params()},
-          forward: [{String.t(), SMTPProtocol.forward_params()}],
-          data: binary
-        }
 
   @doc """
   Create new empty mail

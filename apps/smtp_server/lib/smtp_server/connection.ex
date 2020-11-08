@@ -3,20 +3,14 @@ defmodule SMTPServer.Connection do
   require Logger
 
   defmodule Config do
-    @enforce_keys [
-      :local_domain,
-      :remote_domain,
-      :max_mail_size,
-      :mail_scheduler
-    ]
-    defstruct @enforce_keys
+    use TypedStruct
 
-    @type t :: %Config{
-            local_domain: :inet.hostname(),
-            remote_domain: :inet.hostname(),
-            max_mail_size: non_neg_integer(),
-            mail_scheduler: SMTPServer.MailScheduler.t()
-          }
+    typedstruct do
+      field :local_domain, :inet.hostname(), enforce: true
+      field :remote_domain, :inet.hostname(), enforce: true
+      field :max_mail_size, non_neg_integer(), enforce: true
+      field :mail_scheduler, SMTPServer.MailScheduler.t(), enforce: true
+    end
   end
 
   alias SMTPProtocol.Mail
