@@ -5,11 +5,11 @@ defmodule SMTPServer.Connection do
   defmodule Config do
     use TypedStruct
 
-    typedstruct do
-      field :local_domain, :inet.hostname(), enforce: true
-      field :remote_domain, :inet.hostname(), enforce: true
-      field :max_mail_size, non_neg_integer(), enforce: true
-      field :mail_scheduler, SMTPServer.MailScheduler.t(), enforce: true
+    typedstruct enforce: true do
+      field :local_domain, :inet.hostname()
+      field :remote_domain, :inet.hostname()
+      field :max_mail_size, non_neg_integer()
+      field :mail_scheduler, SMTPServer.MailScheduler.t()
     end
   end
 
