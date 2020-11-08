@@ -18,7 +18,7 @@ defmodule SMTPServer.Connection do
 
   @type t :: GenServer.server()
 
-  @type state() ::
+  @typep state() ::
           :handshake
           | :main
           | {:rcpt, Mail.t()}
@@ -29,7 +29,7 @@ defmodule SMTPServer.Connection do
           :no_response
           | {:normal | :shutdown, non_neg_integer(), String.t() | [String.t()]}
 
-  @type line_response ::
+  @typep line_response ::
           {:no_response, state()}
           | {:response, state(), non_neg_integer(), String.t() | [String.t()]}
           | {:shutdown, non_neg_integer(), String.t()}
