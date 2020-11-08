@@ -81,13 +81,12 @@ defmodule SMTPServer do
     {:ok, remote_host} = :inet.gethostbyaddr(remote_addr)
     {:hostent, remote_domain, _, _, _, _} = remote_host
 
-    config =
-      Map.merge(config, %{
-        remote_addr: remote_addr,
-        remote_domain: remote_domain
+    {:ok, conn} =
+      Connection.start_link(%Connection.Config{
+        local_domain: config.local_domain,
+        remote_domain: remote_domain,
+        max_mail_size: config.max_mail_size
       })
-
-    {:ok, conn} = Connection.start_link(config)
 
     send_response(remote, Connection.handshake(conn))
 

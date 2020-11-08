@@ -2,7 +2,28 @@ defmodule SMTPServer.Connection do
   use GenServer
   require Logger
 
+  defmodule Config do
+    @enforce_keys [:local_domain, :remote_domain, :max_mail_size]
+    defstruct [:local_domain, :remote_domain, :max_mail_size]
+
+    @type t :: %Config{
+            local_domain: :inet.hostname(),
+            remote_domain: :inet.hostname(),
+            max_mail_size: non_neg_integer()
+          }
+
+    @spec new(map()) :: t()
+    def new(map) do
+      %Config{
+        local_domain: map.local_domain,
+        remote_domain: map.remote_domain,
+        max_mail_size: map.max_mail_size
+      }
+    end
+  end
+
   alias SMTPProtocol.Mail
+  alias SMTPServer.Connection.Config
 
   @type state() ::
           :handshake
@@ -11,6 +32,10 @@ defmodule SMTPServer.Connection do
           | {:data, Mail.t(), :crlf | :lf}
           | :shutdown
 
+  @type response() ::
+          :no_response
+          | {:normal | :shutdown, non_neg_integer(), String.t() | [String.t()]}
+
   @type line_response ::
           {:no_response, state()}
           | {:response, state(), non_neg_integer(), String.t() | [String.t()]}
@@ -18,16 +43,19 @@ defmodule SMTPServer.Connection do
 
   # Public API
 
+  @spec start_link(Config.t(), GenServer.options()) :: GenServer.on_start()
   def start_link(config, opts \\ []) do
     GenServer.start_link(__MODULE__, config, opts)
   end
 
-  def handshake(pid) do
-    GenServer.call(pid, :handshake)
+  @spec handshake(GenServer.server()) :: response()
+  def handshake(server) do
+    GenServer.call(server, :handshake)
   end
 
-  def respond_to(pid, line) do
-    GenServer.call(pid, {:line, line})
+  @spec respond_to(GenServer.server(), String.t()) :: response()
+  def respond_to(server, line) do
+    GenServer.call(server, {:line, line})
   end
 
   # GenServer implementation
@@ -68,7 +96,7 @@ defmodule SMTPServer.Connection do
     end
   end
 
-  @spec handle_line(map(), state(), SMTPProtocol.command()) :: line_response()
+  @spec handle_line(Config.t(), state(), SMTPProtocol.command()) :: line_response()
   defp handle_line(config, state, line)
 
   defp handle_line(_, :handshake, {:rset, "", _}) do
@@ -162,7 +190,7 @@ defmodule SMTPServer.Connection do
       Logger.info("Got new mail")
 
       mail = Mail.trim_trailing_crlf(mail)
-      IO.inspect mail
+      IO.inspect(mail)
       # MailScheduler.schedule(config.scheduler, mail)
 
       {:response, :main, 250, "OK"}
@@ -184,11 +212,13 @@ defmodule SMTPServer.Connection do
 
     new_size = Mail.data_size(mail) + byte_size(data)
     soft_limit = config.max_mail_size + 2 + 1024
-    mail = if new_size > soft_limit do
-      mail
-    else
-      Mail.add_data(mail, data)
-    end
+
+    mail =
+      if new_size > soft_limit do
+        mail
+      else
+        Mail.add_data(mail, data)
+      end
 
     {:no_response, {:data, mail, trailing}}
   end

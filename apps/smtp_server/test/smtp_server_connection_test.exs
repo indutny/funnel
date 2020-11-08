@@ -3,6 +3,7 @@ defmodule SMTPServerConnectionTest do
   doctest SMTPServer.Connection
 
   alias SMTPServer.Connection
+  alias SMTPServer.Connection.Config
 
   @moduletag capture_log: true
   @max_mail_size 1024
@@ -22,7 +23,7 @@ defmodule SMTPServerConnectionTest do
     pid =
       start_supervised!(
         {Connection,
-         %{
+         %Config{
            local_domain: "funnel.example",
            remote_domain: "remote.example",
            max_mail_size: @max_mail_size
