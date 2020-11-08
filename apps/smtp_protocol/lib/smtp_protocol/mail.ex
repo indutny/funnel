@@ -13,7 +13,7 @@ defmodule SMTPProtocol.Mail do
   @doc """
   Create new empty mail
   """
-  @spec new(String.t(), map()) :: t()
+  @spec new(String.t(), SMTPProtocol.reverse_params()) :: t()
   def new(reverse_path, reverse_params \\ %{}) do
     %Mail{
       reverse: {reverse_path, reverse_params}
@@ -23,7 +23,7 @@ defmodule SMTPProtocol.Mail do
   @doc """
   Adds new forward path to the mail.
   """
-  @spec add_forward(t(), String.t(), map()) :: t()
+  @spec add_forward(t(), String.t(), SMTPProtocol.forward_params()) :: t()
   def add_forward(mail, forward_path, forward_params \\ %{}) do
     %Mail{
       mail
