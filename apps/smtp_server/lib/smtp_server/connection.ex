@@ -1,16 +1,14 @@
 defmodule SMTPServer.Connection do
   use GenServer
+  use TypedStruct
+
   require Logger
 
-  defmodule Config do
-    use TypedStruct
-
-    typedstruct enforce: true do
-      field :local_domain, :inet.hostname()
-      field :remote_domain, :inet.hostname()
-      field :max_mail_size, non_neg_integer()
-      field :mail_scheduler, SMTPServer.MailScheduler.t()
-    end
+  typedstruct module: Config, enforce: true do
+    field :local_domain, :inet.hostname()
+    field :remote_domain, :inet.hostname()
+    field :max_mail_size, non_neg_integer()
+    field :mail_scheduler, SMTPServer.MailScheduler.t()
   end
 
   alias SMTPProtocol.Mail
@@ -19,20 +17,20 @@ defmodule SMTPServer.Connection do
   @type t :: GenServer.server()
 
   @typep state() ::
-          :handshake
-          | :main
-          | {:rcpt, Mail.t()}
-          | {:data, Mail.t(), :crlf | :lf}
-          | :shutdown
+           :handshake
+           | :main
+           | {:rcpt, Mail.t()}
+           | {:data, Mail.t(), :crlf | :lf}
+           | :shutdown
 
   @type response() ::
           :no_response
           | {:normal | :shutdown, non_neg_integer(), String.t() | [String.t()]}
 
   @typep line_response ::
-          {:no_response, state()}
-          | {:response, state(), non_neg_integer(), String.t() | [String.t()]}
-          | {:shutdown, non_neg_integer(), String.t()}
+           {:no_response, state()}
+           | {:response, state(), non_neg_integer(), String.t() | [String.t()]}
+           | {:shutdown, non_neg_integer(), String.t()}
 
   # Public API
 

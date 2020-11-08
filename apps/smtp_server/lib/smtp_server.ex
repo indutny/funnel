@@ -1,18 +1,16 @@
 defmodule SMTPServer do
-  require Logger
   use Task, restart: :permanent
+  use TypedStruct
 
-  defmodule Config do
-    use TypedStruct
+  require Logger
 
-    typedstruct do
-      field :local_domain, :inet.hostname(), default: "funnel.localhost"
-      field :max_mail_size, non_neg_integer(), default: 30 * 1024 * 1024
-      # 5 minutes
-      field :read_timeout, timeout(), default: 5 * 60 * 1000
-      field :port, non_neg_integer(), default: 0
-      field :max_line_size, non_neg_integer(), default: 1024
-    end
+  typedstruct module: Config do
+    field :local_domain, :inet.hostname(), default: "funnel.localhost"
+    field :max_mail_size, non_neg_integer(), default: 30 * 1024 * 1024
+    # 5 minutes
+    field :read_timeout, timeout(), default: 5 * 60 * 1000
+    field :port, non_neg_integer(), default: 0
+    field :max_line_size, non_neg_integer(), default: 1024
   end
 
   alias SMTPServer.Connection
