@@ -115,6 +115,7 @@ defmodule SMTPServer do
     end
   end
 
+  @spec send_response(:inet.socket(), Connection.response()) :: nil
   defp send_response(_, :no_response) do
     # no-op
   end
@@ -132,6 +133,11 @@ defmodule SMTPServer do
     send_response(remote, {mode, code, rest})
   end
 
+  @spec send_response(
+          :inet.socket(),
+          :not_last | :last,
+          Connection.response()
+        ) :: nil
   defp send_response(remote, order, {mode, code, line}) do
     response =
       case order do
