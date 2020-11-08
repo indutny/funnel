@@ -2,18 +2,18 @@ defmodule SMTPServer.Connection do
   use GenServer
   require Logger
 
-  alias SMTPServer.Mail
+  alias SMTPProtocol.Mail
 
   @type state() ::
           :handshake
           | :main
-          | {:rcpt, Mail}
-          | {:data, Mail, :crlf | :lf}
+          | {:rcpt, Mail.t()}
+          | {:data, Mail.t(), :crlf | :lf}
           | :shutdown
 
   @type line_response ::
           {:no_response, state()}
-          | {:normal, state(), non_neg_integer(), String.t() | [String.t()]}
+          | {:response, state(), non_neg_integer(), String.t() | [String.t()]}
           | {:shutdown, non_neg_integer(), String.t()}
 
   # Public API
@@ -95,7 +95,7 @@ defmodule SMTPServer.Connection do
     {:response, :main, 250,
      [
        "#{config.local_domain} greets #{config.remote_domain}",
-       # TODO(indutny): STARTTLS
+       # TODO(indutny): "STARTTLS",
        "8BITMIME",
        "PIPELINING",
        "SIZE #{config.max_mail_size}",
@@ -147,25 +147,29 @@ defmodule SMTPServer.Connection do
   end
 
   defp handle_line(_, {:rcpt, mail}, {:data, "", trailing}) do
-    if Enum.empty?(mail.forward_paths) do
+    if Enum.empty?(mail.forward) do
       {:response, {:rcpt, mail}, 554, "No valid recipients"}
     else
       {:response, {:data, mail, trailing}, 354, "Start mail input; end with <CRLF>.<CRLF>"}
     end
   end
 
-  defp handle_line(_, {:data, mail, :crlf}, ".\r\n") do
-    if Mail.has_exceeded_size?(mail) do
+  defp handle_line(config, {:data, mail, :crlf}, ".\r\n") do
+    if Mail.data_size(mail) > config.max_mail_size + 2 + 1024 do
       Logger.info("Mail size exceeded")
       {:response, :main, 552, "Mail exceeds maximum allowed size"}
     else
       Logger.info("Got new mail")
-      :ok = process_mail(mail)
+
+      mail = Mail.trim_trailing_crlf(mail)
+      IO.inspect mail
+      # MailScheduler.schedule(config.scheduler, mail)
+
       {:response, :main, 250, "OK"}
     end
   end
 
-  defp handle_line(_, {:data, mail, _}, data) do
+  defp handle_line(config, {:data, mail, _}, data) do
     data =
       with "." <> stripped <- data do
         stripped
@@ -178,7 +182,15 @@ defmodule SMTPServer.Connection do
         :lf
       end
 
-    {:no_response, {:data, Mail.add_data(mail, data), trailing}}
+    new_size = Mail.data_size(mail) + byte_size(data)
+    soft_limit = config.max_mail_size + 2 + 1024
+    mail = if new_size > soft_limit do
+      mail
+    else
+      Mail.add_data(mail, data)
+    end
+
+    {:no_response, {:data, mail, trailing}}
   end
 
   defp handle_line(_, state, {:data, "", _}) do
@@ -199,20 +211,15 @@ defmodule SMTPServer.Connection do
   end
 
   @spec receive_reverse_path(map(), String.t(), map()) ::
-          {:ok, Mail}
+          {:ok, Mail.t()}
           | {:error, atom()}
   defp receive_reverse_path(config, reverse_path, params) do
-    # TODO(indutny): should we bother about possible 7-bit encoding?
     case Map.get(params, :size, config.max_mail_size) do
       size when size > config.max_mail_size ->
         {:error, :max_size_exceeded}
 
-      max_size ->
-        mail = %Mail{
-          reverse_path: {reverse_path, params},
-          max_size: max_size
-        }
-
+      _actual_size ->
+        mail = Mail.new(reverse_path, params)
         {:ok, mail}
     end
   end
@@ -225,15 +232,6 @@ defmodule SMTPServer.Connection do
     # 550 - if no such user
     # should also disallow outgoing email (different domain) unless
     # authorized.
-    # NOTE: Allow case-insensitive Postmaster
-    {:ok, Mail.add_forward_path(mail, {forward_path, params})}
-  end
-
-  @spec process_mail(Mail.t()) :: :ok
-  defp process_mail(mail) do
-    mail = Mail.trim_trailing_crlf(mail)
-
-    IO.inspect(mail)
-    :ok
+    {:ok, Mail.add_forward(mail, forward_path, params)}
   end
 end

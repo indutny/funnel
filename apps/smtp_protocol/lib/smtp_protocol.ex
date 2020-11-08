@@ -201,7 +201,7 @@ defmodule SMTPProtocol do
       {:error, "Invalid mail parameter"}
   """
   @spec parse_mail_params(String.t(), :mail | :rcpt) ::
-          {:ok, map()} | {:error, String.t()}
+          {:ok, map()} | {:error, String.t() | :unknown_param}
   def parse_mail_params(params, side) do
     params
     # XXX(indutny): this is too lenient
