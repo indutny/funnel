@@ -1,72 +1,75 @@
 defmodule SMTPServer.Connection do
+  use GenServer
   require Logger
 
-  alias SMTPServer.Connection
   alias SMTPServer.Mail
 
-  @enforce_keys [:local_domain, :max_mail_size]
-  defstruct [
-    :local_domain,
-    :remote_addr,
-    :remote_domain,
-    :max_mail_size,
-    :socket,
-    read_timeout: 5000
-  ]
-
-  @type t() :: %Connection{
-          local_domain: String.t(),
-          remote_addr: :inet.ip_address(),
-          remote_domain: String.t(),
-          max_mail_size: integer,
-          socket: nil | :gen_tcp.socket(),
-          read_timeout: integer()
-        }
-
-  @type state() :: :handshake | :main | {:rcpt, Mail} | {:data, Mail, :crlf | :lf}
+  @type state() ::
+          :handshake
+          | :main
+          | {:rcpt, Mail}
+          | {:data, Mail, :crlf | :lf}
+          | :shutdown
 
   @type line_response ::
           {:no_response, state()}
-          | {:response, state(), integer, String.t()}
-          | :exit
+          | {:normal, state(), non_neg_integer(), String.t() | [String.t()]}
+          | {:shutdown, non_neg_integer(), String.t()}
 
-  @doc """
-  Start handshake with remote endpoint.
-  """
-  @spec serve(t()) :: :ok
-  def serve(conn) do
-    {:ok, {remote_addr, _}} = :inet.peername(conn.socket)
-    {:ok, {:hostent, remote_domain, _, _, _, _}} = :inet.gethostbyaddr(remote_addr)
+  # Public API
 
-    Logger.info("Received new connection from #{remote_domain}")
-
-    respond(conn, "220 #{conn.local_domain}")
-
-    loop(:handshake, %Connection{
-      conn
-      | remote_addr: remote_addr,
-        remote_domain: remote_domain
-    })
+  def start_link(config, opts \\ []) do
+    GenServer.start_link(__MODULE__, config, opts)
   end
 
-  defp loop(state, conn) do
-    line = get_line(conn, state)
+  def handshake(pid) do
+    GenServer.call(pid, :handshake)
+  end
 
-    case handle_line(conn, state, line) do
+  def respond_to(pid, line) do
+    GenServer.call(pid, {:line, line})
+  end
+
+  # GenServer implementation
+
+  @impl true
+  def init(config) do
+    {:ok, {:handshake, config}}
+  end
+
+  @impl true
+  def handle_call(:handshake, _from, s = {_state, config}) do
+    {:reply, {:normal, 220, "Welcome to #{config.local_domain}"}, s}
+  end
+
+  @impl true
+  def handle_call({:line, line}, _from, {state, config}) do
+    Logger.debug("#{config.remote_domain} < #{String.trim_trailing(line)}")
+
+    line =
+      case state do
+        {:data, _, _} ->
+          line
+
+        _ ->
+          line
+          |> SMTPProtocol.parse_command()
+      end
+
+    case handle_line(config, state, line) do
       {:no_response, new_state} ->
-        loop(new_state, conn)
+        {:reply, :no_response, {new_state, config}}
 
-      {:response, new_state, code, msg} ->
-        respond(conn, "#{code} #{msg}")
-        loop(new_state, conn)
+      {:response, new_state, code, response} ->
+        {:reply, {:normal, code, response}, {new_state, config}}
 
-      :exit ->
-        exit(:shutdown)
+      {:shutdown, code, response} ->
+        {:reply, {:shutdown, code, response}, {:shutdown, config}}
     end
   end
 
-  @spec handle_line(t(), state(), SMTPProtocol.command()) :: line_response()
-  defp handle_line(conn, state, line)
+  @spec handle_line(map(), state(), SMTPProtocol.command()) :: line_response()
+  defp handle_line(config, state, line)
 
   defp handle_line(_, :handshake, {:rset, "", _}) do
     {:response, :handshake, 250, "OK"}
@@ -80,23 +83,24 @@ defmodule SMTPServer.Connection do
     {:response, state, 250, "OK"}
   end
 
-  defp handle_line(conn, _, {:quit, "", _}) do
-    respond(conn, "221 OK")
-    :gen_tcp.shutdown(conn.socket, :write)
-    :exit
+  defp handle_line(_, _, {:quit, "", _}) do
+    {:shutdown, 221, "OK"}
   end
 
   defp handle_line(_, :handshake, {:helo, _domain, _}) do
     {:response, :main, 250, "OK"}
   end
 
-  defp handle_line(conn, :handshake, {:ehlo, _domain, _}) do
-    respond(conn, "250-#{conn.local_domain} greets #{conn.remote_domain}")
-    # TODO(indutny): STARTTLS
-    respond(conn, "250-8BITMIME")
-    respond(conn, "250-PIPELINING")
-    respond(conn, "250-SIZE #{conn.max_mail_size}")
-    {:response, :main, 250, "SMTPUTF8"}
+  defp handle_line(config, :handshake, {:ehlo, _domain, _}) do
+    {:response, :main, 250,
+     [
+       "#{config.local_domain} greets #{config.remote_domain}",
+       # TODO(indutny): STARTTLS
+       "8BITMIME",
+       "PIPELINING",
+       "SIZE #{config.max_mail_size}",
+       "SMTPUTF8"
+     ]}
   end
 
   defp handle_line(_, :main, {:vrfy, _, _}) do
@@ -106,13 +110,13 @@ defmodule SMTPServer.Connection do
 
   defp handle_line(_, :main, {:help, _, _}) do
     # Not really supported
-    {:response, :main, 214, "I'm so happy you asked"}
+    {:response, :main, 214, "I'm so glad you asked. Check RFC 5321"}
   end
 
-  defp handle_line(conn, :main, {:mail_from, reverse_path, _}) do
+  defp handle_line(config, :main, {:mail_from, reverse_path, _}) do
     case SMTPProtocol.parse_mail_and_params(reverse_path, :mail) do
       {:ok, reverse_path, params} ->
-        case receive_reverse_path(conn, reverse_path, params) do
+        case receive_reverse_path(config, reverse_path, params) do
           {:ok, mail} ->
             {:response, {:rcpt, mail}, 250, "OK"}
 
@@ -128,10 +132,10 @@ defmodule SMTPServer.Connection do
     end
   end
 
-  defp handle_line(conn, {:rcpt, mail}, {:rcpt_to, forward_path, _}) do
+  defp handle_line(config, {:rcpt, mail}, {:rcpt_to, forward_path, _}) do
     case SMTPProtocol.parse_mail_and_params(forward_path, :rcpt) do
       {:ok, forward_path, params} ->
-        {:ok, new_mail} = receive_forward_path(conn, mail, forward_path, params)
+        {:ok, new_mail} = receive_forward_path(config, mail, forward_path, params)
         {:response, {:rcpt, new_mail}, 250, "OK"}
 
       {:error, :unknown_param} ->
@@ -190,19 +194,17 @@ defmodule SMTPServer.Connection do
     {:response, state, 502, "Command not implemented"}
   end
 
-  defp handle_line(conn, _, _) do
-    respond(conn, "451 Server error")
-    :gen_tcp.shutdown(conn.socket, :write)
-    :exit
+  defp handle_line(_, _, _) do
+    {:shutdown, 451, "Server error"}
   end
 
-  @spec receive_reverse_path(t(), String.t(), map()) ::
+  @spec receive_reverse_path(map(), String.t(), map()) ::
           {:ok, Mail}
           | {:error, atom()}
-  defp receive_reverse_path(conn, reverse_path, params) do
+  defp receive_reverse_path(config, reverse_path, params) do
     # TODO(indutny): should we bother about possible 7-bit encoding?
-    case Map.get(params, :size, conn.max_mail_size) do
-      size when size > conn.max_mail_size ->
+    case Map.get(params, :size, config.max_mail_size) do
+      size when size > config.max_mail_size ->
         {:error, :max_size_exceeded}
 
       max_size ->
@@ -215,7 +217,7 @@ defmodule SMTPServer.Connection do
     end
   end
 
-  @spec receive_forward_path(t(), Mail.t(), String.t(), map()) ::
+  @spec receive_forward_path(map(), Mail.t(), String.t(), map()) ::
           {:ok, Mail.t()}
           | {:error, atom()}
   defp receive_forward_path(_, mail, forward_path, params) do
@@ -233,40 +235,5 @@ defmodule SMTPServer.Connection do
 
     IO.inspect(mail)
     :ok
-  end
-
-  #
-  # Helpers
-  #
-
-  defp get_line(conn, state) do
-    case :gen_tcp.recv(conn.socket, 0, conn.read_timeout) do
-      {:ok, line} ->
-        Logger.debug("#{conn.remote_domain} < #{String.trim_trailing(line)}")
-
-        case state do
-          {:data, _, _} ->
-            line
-
-          _ ->
-            line
-            |> SMTPProtocol.parse_command()
-        end
-
-      {:error, :closed} ->
-        exit(:shutdown)
-    end
-  end
-
-  defp respond(conn, line) do
-    Logger.debug("#{conn.remote_domain} > #{line}")
-
-    case :gen_tcp.send(conn.socket, line <> "\r\n") do
-      :ok ->
-        :ok
-
-      {:error, :closed} ->
-        exit(:shutdown)
-    end
   end
 end
