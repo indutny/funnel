@@ -25,6 +25,8 @@ defmodule SMTPServer.Connection do
   alias SMTPProtocol.Mail
   alias SMTPServer.Connection.Config
 
+  @type t :: GenServer.server()
+
   @type state() ::
           :handshake
           | :main
@@ -43,17 +45,17 @@ defmodule SMTPServer.Connection do
 
   # Public API
 
-  @spec start_link(Config.t(), GenServer.options()) :: GenServer.on_start()
+  @spec start_link(Config.t(), GenServer.options()) :: {:ok, t()}
   def start_link(config, opts \\ []) do
     GenServer.start_link(__MODULE__, config, opts)
   end
 
-  @spec handshake(GenServer.server()) :: response()
+  @spec handshake(t()) :: response()
   def handshake(server) do
     GenServer.call(server, :handshake)
   end
 
-  @spec respond_to(GenServer.server(), String.t()) :: response()
+  @spec respond_to(t(), String.t()) :: response()
   def respond_to(server, line) do
     GenServer.call(server, {:line, line})
   end

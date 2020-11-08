@@ -2,12 +2,29 @@ defmodule SMTPServer do
   require Logger
   use Task, restart: :permanent
 
+  defmodule Config do
+    defstruct local_domain: "funnel.localhost",
+              max_mail_size: 30 * 1024 * 1024,
+              # 5 minutes,
+              read_timeout: 5 * 60 * 1000,
+              port: 0,
+              max_line_size: 1024
+
+    @type t :: %Config{
+            local_domain: :inet.hostname(),
+            max_mail_size: non_neg_integer(),
+            read_timeout: non_neg_integer(),
+            port: non_neg_integer()
+          }
+  end
+
   alias SMTPServer.Connection
 
   @moduledoc """
   `SMTPServer` implementation.
   """
 
+  @spec start_link(Config.t(), [term()]) :: {:ok, pid(), map()}
   def start_link(config, _opts \\ []) do
     {:ok, pid} = Task.start_link(SMTPServer, :listen, [self(), config])
 
@@ -17,20 +34,8 @@ defmodule SMTPServer do
     end
   end
 
+  @spec listen(pid(), Config.t()) :: nil
   def listen(parent, config) do
-    config =
-      Map.merge(
-        %{
-          local_domain: "funnel.localhost",
-          max_mail_size: 30 * 1024 * 1024,
-          # 5 minutes
-          read_timeout: 5 * 60 * 1000,
-          port: 0,
-          max_line_size: 1024
-        },
-        config
-      )
-
     {:ok, socket} =
       :gen_tcp.listen(config.port, [
         :binary,
@@ -52,6 +57,7 @@ defmodule SMTPServer do
     accept(config, socket)
   end
 
+  @spec listen(Config.t(), :inet.socket()) :: nil
   defp accept(config, socket) do
     # TODO(indutny): rate-limiting
     {:ok, remote} = :gen_tcp.accept(socket)
@@ -76,6 +82,7 @@ defmodule SMTPServer do
     accept(config, socket)
   end
 
+  @spec start_connection(Config.t(), :inet.socket()) :: nil
   defp start_connection(config, remote) do
     {:ok, {remote_addr, _}} = :inet.peername(remote)
     {:ok, remote_host} = :inet.gethostbyaddr(remote_addr)
@@ -93,6 +100,7 @@ defmodule SMTPServer do
     serve(config, remote, conn)
   end
 
+  @spec serve(Config.t(), :inet.socket(), Connection.t()) :: nil
   defp serve(config, remote, conn) do
     case :gen_tcp.recv(remote, 0, config.read_timeout) do
       {:ok, line} ->

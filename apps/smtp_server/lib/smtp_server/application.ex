@@ -9,7 +9,7 @@ defmodule SMTPServer.Application do
 
     children = [
       {Task.Supervisor, name: SMTPServer.ConnectionSupervisor},
-      {SMTPServer, %{port: port}}
+      {SMTPServer, %SMTPServer.Config{port: port}}
     ]
 
     opts = [strategy: :one_for_one, name: SMTPServer.Supervisor]
