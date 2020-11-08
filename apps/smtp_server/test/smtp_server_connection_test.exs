@@ -25,7 +25,8 @@ defmodule SMTPServerConnectionTest do
          %Connection.Config{
            local_domain: "funnel.example",
            remote_domain: "remote.example",
-           max_mail_size: @max_mail_size
+           max_mail_size: @max_mail_size,
+           mail_scheduler: SMTPServer.MailScheduler
          }}
       )
 

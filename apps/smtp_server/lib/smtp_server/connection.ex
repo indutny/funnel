@@ -3,23 +3,20 @@ defmodule SMTPServer.Connection do
   require Logger
 
   defmodule Config do
-    @enforce_keys [:local_domain, :remote_domain, :max_mail_size]
-    defstruct [:local_domain, :remote_domain, :max_mail_size]
+    @enforce_keys [
+      :local_domain,
+      :remote_domain,
+      :max_mail_size,
+      :mail_scheduler
+    ]
+    defstruct @enforce_keys
 
     @type t :: %Config{
             local_domain: :inet.hostname(),
             remote_domain: :inet.hostname(),
-            max_mail_size: non_neg_integer()
+            max_mail_size: non_neg_integer(),
+            mail_scheduler: SMTPServer.MailScheduler.t()
           }
-
-    @spec new(map()) :: t()
-    def new(map) do
-      %Config{
-        local_domain: map.local_domain,
-        remote_domain: map.remote_domain,
-        max_mail_size: map.max_mail_size
-      }
-    end
   end
 
   alias SMTPProtocol.Mail
@@ -192,8 +189,7 @@ defmodule SMTPServer.Connection do
       Logger.info("Got new mail")
 
       mail = Mail.trim_trailing_crlf(mail)
-      IO.inspect(mail)
-      # MailScheduler.schedule(config.scheduler, mail)
+      SMTPServer.MailScheduler.schedule(config.mail_scheduler, mail)
 
       {:response, :main, 250, "OK"}
     end

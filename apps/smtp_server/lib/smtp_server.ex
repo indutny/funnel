@@ -92,7 +92,8 @@ defmodule SMTPServer do
       Connection.start_link(%Connection.Config{
         local_domain: config.local_domain,
         remote_domain: remote_domain,
-        max_mail_size: config.max_mail_size
+        max_mail_size: config.max_mail_size,
+        mail_scheduler: SMTPServer.MailScheduler
       })
 
     send_response(remote, Connection.handshake(conn))

@@ -9,6 +9,7 @@ defmodule SMTPServer.Application do
 
     children = [
       {Task.Supervisor, name: SMTPServer.ConnectionSupervisor},
+      {SMTPServer.MailScheduler, name: SMTPServer.MailScheduler},
       {SMTPServer, %SMTPServer.Config{port: port}}
     ]
 
