@@ -1,9 +1,9 @@
-defmodule SMTPServerConnectionTest do
+defmodule SMTPProtocolServerTest do
   use ExUnit.Case, async: true
-  doctest SMTPServer.Connection
+  doctest SMTPProtocol.Server
 
-  alias SMTPServer.Connection
-  alias SMTPServer.MailScheduler
+  alias SMTPProtocol.Server
+  alias SMTPProtocolTest.MockScheduler
 
   @moduletag capture_log: true
   @max_mail_size 1024
@@ -20,23 +20,25 @@ defmodule SMTPServerConnectionTest do
               ]}
 
   setup do
+    scheduler = start_supervised!(MockScheduler)
+
     pid =
       start_supervised!(
-        {Connection,
-         %Connection.Config{
+        {Server,
+         %Server.Config{
            local_domain: "funnel.example",
            remote_domain: "remote.example",
            max_mail_size: @max_mail_size,
-           mail_scheduler: SMTPServer.MailScheduler
+           mail_scheduler: {MockScheduler, scheduler}
          }}
       )
 
-    %{conn: pid}
+    %{conn: pid, scheduler: scheduler}
   end
 
   describe "NOOP" do
     test "should ignore NOOP during handshake", %{conn: conn} do
-      assert Connection.handshake(conn) ==
+      assert Server.handshake(conn) ==
                {:normal, 220, "Welcome to funnel.example"}
 
       assert send_line(conn, "NOOP") == @ok
@@ -53,7 +55,7 @@ defmodule SMTPServerConnectionTest do
 
   describe "RSET" do
     test "should treat RSET as NOOP during handshake", %{conn: conn} do
-      assert Connection.handshake(conn) ==
+      assert Server.handshake(conn) ==
                {:normal, 220, "Welcome to funnel.example"}
 
       assert send_line(conn, "RSET") == @ok
@@ -109,7 +111,7 @@ defmodule SMTPServerConnectionTest do
              {:normal, 554, "No valid recipients"}
   end
 
-  test "should receive mail", %{conn: conn} do
+  test "should receive mail", %{conn: conn, scheduler: scheduler} do
     handshake!(conn)
 
     assert send_lines(conn, [
@@ -134,7 +136,7 @@ defmodule SMTPServerConnectionTest do
              @ok
            ]
 
-    {:mail, mail} = MailScheduler.pop(MailScheduler)
+    {:mail, mail} = MockScheduler.pop(scheduler)
     assert mail.reverse == {"spam@example.com", %{size: 100}}
 
     assert mail.forward == [
@@ -150,7 +152,7 @@ defmodule SMTPServerConnectionTest do
   defp handshake!(conn, mode \\ :normal) do
     case mode do
       :normal ->
-        assert Connection.handshake(conn) ==
+        assert Server.handshake(conn) ==
                  {:normal, 220, "Welcome to funnel.example"}
 
       :skip_first ->
@@ -161,7 +163,7 @@ defmodule SMTPServerConnectionTest do
   end
 
   def send_line(conn, line) do
-    Connection.respond_to(conn, line <> "\r\n")
+    Server.respond_to(conn, line <> "\r\n")
   end
 
   def send_lines(conn, lines) do

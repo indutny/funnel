@@ -1,6 +1,8 @@
-defmodule SMTPServer.MailScheduler do
+defmodule SMTPProtocolTest.MockScheduler do
   use GenServer
-  @behaviour SMTPProtocol.MailScheduler
+  alias SMTPProtocol.Mail
+
+  @behavior SMTPProtocol.MailScheduler
 
   @spec start_link(GenServer.options()) :: GenServer.on_start()
   def start_link(opts \\ []) do
@@ -11,7 +13,6 @@ defmodule SMTPServer.MailScheduler do
 
   @impl true
   def schedule(server, mail) do
-    IO.inspect(mail)
     GenServer.call(server, {:schedule, mail})
   end
 

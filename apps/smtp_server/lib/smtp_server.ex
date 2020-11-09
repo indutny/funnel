@@ -13,7 +13,7 @@ defmodule SMTPServer do
     field :max_line_size, non_neg_integer(), default: 1024
   end
 
-  alias SMTPServer.Connection
+  alias SMTPProtocol.Server, as: Connection
 
   @moduledoc """
   `SMTPServer` implementation.
@@ -88,7 +88,7 @@ defmodule SMTPServer do
         local_domain: config.local_domain,
         remote_domain: remote_domain,
         max_mail_size: config.max_mail_size,
-        mail_scheduler: SMTPServer.MailScheduler
+        mail_scheduler: {SMTPServer.MailScheduler, SMTPServer.MailScheduler}
       })
 
     send_response(remote, Connection.handshake(conn))

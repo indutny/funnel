@@ -1,4 +1,4 @@
-defmodule SMTPServer.Connection do
+defmodule SMTPProtocol.Server do
   use GenServer
   use TypedStruct
 
@@ -8,11 +8,11 @@ defmodule SMTPServer.Connection do
     field :local_domain, :inet.hostname()
     field :remote_domain, :inet.hostname()
     field :max_mail_size, non_neg_integer()
-    field :mail_scheduler, SMTPServer.MailScheduler.t()
+    field :mail_scheduler, {atom(), SMTPProtocol.MailScheduler.t()}
   end
 
   alias SMTPProtocol.Mail
-  alias SMTPServer.Connection.Config
+  alias SMTPProtocol.Server.Config
 
   @type t :: GenServer.server()
 
@@ -181,7 +181,7 @@ defmodule SMTPServer.Connection do
       Logger.info("Got new mail")
 
       mail = Mail.trim_trailing_crlf(mail)
-      :ok = SMTPServer.MailScheduler.schedule(config.mail_scheduler, mail)
+      :ok = SMTPProtocol.MailScheduler.schedule(config.mail_scheduler, mail)
 
       {:response, :main, 250, "OK"}
     end
