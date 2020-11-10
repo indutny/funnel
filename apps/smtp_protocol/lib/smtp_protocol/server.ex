@@ -1,4 +1,9 @@
 defmodule SMTPProtocol.Server do
+  @moduledoc """
+  SMTP Server connection implementation. Receives line input from remote end
+  and generates responses to be sent back.
+  """
+
   use GenServer
   use TypedStruct
 
@@ -27,6 +32,8 @@ defmodule SMTPProtocol.Server do
           :no_response
           | {:normal | :shutdown, non_neg_integer(), String.t() | [String.t()]}
 
+  @type line() :: String.t()
+
   @typep line_response ::
            {:no_response, state()}
            | {:response, state(), non_neg_integer(), String.t() | [String.t()]}
@@ -44,7 +51,7 @@ defmodule SMTPProtocol.Server do
     GenServer.call(server, :handshake)
   end
 
-  @spec respond_to(t(), String.t()) :: response()
+  @spec respond_to(t(), line()) :: response()
   def respond_to(server, line) do
     GenServer.call(server, {:line, line})
   end

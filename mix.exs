@@ -17,15 +17,7 @@ defmodule Funnel.MixProject do
   # Run "mix help deps" for examples and options.
   defp deps do
     [
-      {:dialyxir, "~> 1.0", only: [:dev], runtime: false},
-      # TODO(indutny): use to limit concurrency when reaching out to external
-      # servers.
-      {:poolboy, "~> 1.5.1"},
-      # TODO(indutny): use in conjunction with STARTTLS to verify the remote
-      # server?
-      {:ssl_verify_fun, "~> 1.1"},
-      # TODO(indutny): use this for better TCP server performance.
-      {:ranch, "~> 2.0"}
+      {:dialyxir, "~> 1.0", only: [:dev], runtime: false}
     ]
   end
 end

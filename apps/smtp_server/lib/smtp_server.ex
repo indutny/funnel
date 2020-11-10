@@ -10,7 +10,10 @@ defmodule SMTPServer do
     # 5 minutes
     field :read_timeout, timeout(), default: 5 * 60 * 1000
     field :port, non_neg_integer(), default: 0
-    field :max_line_size, non_neg_integer(), default: 1024
+
+    # TODO(indutny): line size limit leads to unrecoverable :emsgsize error.
+    # Needs to be able to send the 500 response without closing the socket.
+    field :max_line_size, non_neg_integer(), default: 512
   end
 
   alias SMTPProtocol.Server, as: Connection

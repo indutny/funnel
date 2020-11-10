@@ -43,4 +43,48 @@ defmodule SMTPProtocolTest.MockScheduler do
   end
 end
 
+defmodule SMTPProtocolTest.MockConnection do
+  use GenServer
+
+  @behaviour SMTPProtocol.Connection
+
+  alias SMTPProtocol.Server
+
+  @spec start_link(Server.t(), GenServer.options()) :: GenServer.on_start()
+  def start_link(remote, opts \\ []) do
+    GenServer.start_link(__MODULE__, remote, opts)
+  end
+
+  # Connection implementation
+
+  @impl true
+  def send(server, line) do
+    GenServer.call(server, {:send, line})
+  end
+
+  @impl true
+  def recv_line(server) do
+    GenServer.call(server, :recv_line)
+  end
+
+  # GenServer implementation
+
+  @impl true
+  def init(remote) do
+    {:ok, remote}
+  end
+
+  @impl true
+  def handle_call({:send, line}, _from, remote) do
+    response = Server.respond_to(remote, line)
+    IO.inspect(response)
+    {:reply, :ok, remote}
+  end
+
+  @impl true
+  def handle_call(:recv_line, _from, remote) do
+    {:reply, {:error, :implement_me}, remote}
+  end
+end
+
 ExUnit.start()

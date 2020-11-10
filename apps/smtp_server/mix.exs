@@ -27,7 +27,15 @@ defmodule SMTPServer.MixProject do
   defp deps do
     [
       {:smtp_protocol, in_umbrella: true},
-      {:typed_struct, "~> 0.2.1"}
+      {:typed_struct, "~> 0.2.1"},
+      # TODO(indutny): use to limit concurrency when reaching out to external
+      # servers.
+      {:poolboy, "~> 1.5.1"},
+      # TODO(indutny): use in conjunction with STARTTLS to verify the remote
+      # server?
+      {:ssl_verify_fun, "~> 1.1"},
+      # TODO(indutny): use this for better TCP server performance.
+      {:ranch, "~> 2.0"}
     ]
   end
 end
