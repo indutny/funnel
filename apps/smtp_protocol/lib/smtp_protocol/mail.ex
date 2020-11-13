@@ -4,7 +4,7 @@ defmodule SMTPProtocol.Mail do
   typedstruct do
     field :reverse, {String.t(), SMTPProtocol.reverse_params()}, enforce: true
     field :forward, [{String.t(), SMTPProtocol.forward_params()}], default: []
-    field :data, binary(), default: <<>>
+    field :data, binary(), enforce: true
   end
 
   alias SMTPProtocol.Mail
@@ -13,9 +13,10 @@ defmodule SMTPProtocol.Mail do
   Create new empty mail
   """
   @spec new(String.t(), SMTPProtocol.reverse_params()) :: t()
-  def new(reverse_path, reverse_params \\ %{}) do
+  def new(reverse_path, reverse_params \\ %{}, data \\ "") do
     %Mail{
-      reverse: {reverse_path, reverse_params}
+      reverse: {reverse_path, reverse_params},
+      data: data
     }
   end
 
@@ -51,11 +52,10 @@ defmodule SMTPProtocol.Mail do
 
   ## Examples
 
-  iex> mail = Mail.new("a@b.com")
-  ...>        |> Mail.add_data("hello\r\n\r\n")
-  ...>        |> Mail.trim_trailing_crlf()
-  iex> mail.data
-  "hello\r\n"
+      iex> mail = Mail.new("a@b.com", %{}, "hello\r\n\r\n")
+      ...>        |> Mail.trim_trailing_crlf()
+      iex> mail.data
+      "hello\r\n"
   """
   @spec trim_trailing_crlf(t()) :: t()
   def trim_trailing_crlf(mail) do
@@ -69,7 +69,21 @@ defmodule SMTPProtocol.Mail do
   end
 
   @doc """
+  Checks if mail's data has characters with 8th bit set to 1.
+
+  ## Examples
+
+      iex> Mail.new("a@b.com", %{}, "ohai")
+      ...> |> Mail.has_8bitdata?()
+      false
+
+      iex> Mail.new("a@b.com", %{}, "こんにちは")
+      ...> |> Mail.has_8bitdata?()
+      true
   """
   def has_8bitdata?(mail) do
+    mail.data
+    |> :binary.bin_to_list()
+    |> Enum.any?(&(&1 > 0x7F))
   end
 end
