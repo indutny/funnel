@@ -13,6 +13,14 @@ defmodule SMTPProtocol do
   @type command_trailing :: :crlf | :lf
   @type command :: {command_kind(), command_extra(), command_trailing()}
 
+  @type response :: {non_neg_integer(), String.t(), :not_last | :last}
+  @type extension ::
+          :mime8bit
+          | :pipelining
+          | {:size, non_neg_integer() | :unlimited | :unspecified}
+          | :smtputf8
+          | {:unknown, String.t()}
+
   @commands %{
     ~r/^HELO\s/i => :helo,
     ~r/^EHLO(\s|$)/i => :ehlo,
@@ -27,7 +35,7 @@ defmodule SMTPProtocol do
   }
 
   @doc ~S"""
-  Parses the command.
+  Parses the command sent by client.
 
   ## Examples
 
@@ -70,6 +78,112 @@ defmodule SMTPProtocol do
           false
       end
     end)
+  end
+
+  @doc ~S"""
+  Parses the response sent back by server.
+
+  ## Examples
+
+      iex> SMTPProtocol.parse_response("250\r\n")
+      {:ok, {250, "", :last}}
+
+      iex> SMTPProtocol.parse_response("250 OK\r\n")
+      {:ok, {250, "OK", :last}}
+
+      iex> SMTPProtocol.parse_response("250-8BITMIME\r\n")
+      {:ok, {250, "8BITMIME", :not_last}}
+
+      iex> SMTPProtocol.parse_response("not response\r\n")
+      {:error, "Invalid response line"}
+  """
+  @spec parse_response(String.t()) :: response() | {:error, String.t()}
+  def parse_response(line) do
+    case Regex.run(~r/^([2-5]\d\d)?(?:([-\s])\s*(.*?))?(?:\r\n|\n)$/, line) do
+      nil ->
+        {:error, "Invalid response line"}
+
+      [_, code, extra, message] ->
+        last =
+          case extra do
+            "-" -> :not_last
+            _ -> :last
+          end
+
+        {:ok, {String.to_integer(code), message, last}}
+    end
+  end
+
+  @doc """
+  Parse extensions from server's response to EHLO.
+
+  ## Examples
+
+      iex> SMTPProtocol.parse_extension("8BITMIME")
+      :mime8bit
+
+      iex> SMTPProtocol.parse_extension("PIPELINING")
+      :pipelining
+
+      iex> SMTPProtocol.parse_extension("SIZE")
+      {:size, :unspecified}
+
+      iex> SMTPProtocol.parse_extension("SIZE 100")
+      {:size, 100}
+
+      iex> SMTPProtocol.parse_extension("SIZE 0")
+      {:size, :unlimited}
+
+      iex> SMTPProtocol.parse_extension("SMTPUTF8")
+      :smtputf8
+
+      iex> SMTPProtocol.parse_extension("BOO")
+      {:unknown, "BOO"}
+
+      iex> SMTPProtocol.parse_extension("SIZE -100")
+      {:error, "Invalid parameter of SIZE extension"}
+  """
+  @spec parse_extension(String.t()) :: extension() | {:error, String.t()}
+  def parse_extension(ext) do
+    ext
+    |> String.upcase()
+    |> String.split()
+    |> parse_extension_parts()
+  end
+
+  @spec parse_extension_parts([String.t()]) :: extension() | {:error, String.t()}
+  defp parse_extension_parts(["8BITMIME" | _]) do
+    :mime8bit
+  end
+
+  defp parse_extension_parts(["PIPELINING" | _]) do
+    :pipelining
+  end
+
+  defp parse_extension_parts(["SIZE"]) do
+    {:size, :unspecified}
+  end
+
+  defp parse_extension_parts(["SIZE", param | _]) do
+    case Integer.parse(param) do
+      {limit, ""} ->
+        cond do
+          limit > 0 -> {:size, limit}
+          limit == 0 -> {:size, :unlimited}
+          true -> {:error, "Invalid parameter of SIZE extension"}
+        end
+
+      _ ->
+        {:error, "Invalid parameter of SIZE extension"}
+    end
+  end
+
+  defp parse_extension_parts(["SMTPUTF8" | _]) do
+    :smtputf8
+  end
+
+  defp parse_extension_parts([name | _]) do
+    {:unknown, name}
   end
 
   @doc ~S"""

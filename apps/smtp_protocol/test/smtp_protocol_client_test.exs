@@ -27,22 +27,29 @@ defmodule SMTPProtocolClientTest do
 
     conn = start_supervised!({MockConnection, server})
 
-    %{server: server, scheduler: scheduler, conn: {MockConnection, conn}}
-  end
-
-  test "should send mail", %{conn: conn, scheduler: scheduler} do
     config = %Client.Config{
       local_domain: "client.example"
     }
 
+    client =
+      start_supervised!(%{
+        id: Client,
+        start: {Client, :start_link, [config, {MockConnection, conn}]}
+      })
+
+    %{client: client, scheduler: scheduler}
+  end
+
+  test "should send mail", %{client: client, scheduler: scheduler} do
     outgoing = %Mail{
       reverse: {"i@client.example", %{}},
       forward: [{"you@server.example", %{}}],
       data: "Hey!\r\n...are you okay?"
     }
 
-    assert Client.handshake(config, conn) == :ok
-    assert Client.send(config, conn, outgoing) == :ok
+    assert Client.handshake(client) == :ok
+    assert Client.send(client, outgoing) == :ok
+    assert Client.quit(client) == :ok
 
     assert {:mail, mail} = MockScheduler.pop(scheduler)
     assert mail == outgoing
