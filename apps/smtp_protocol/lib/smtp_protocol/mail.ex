@@ -46,8 +46,16 @@ defmodule SMTPProtocol.Mail do
     byte_size(mail.data)
   end
 
-  @doc """
+  @doc ~S"""
   Removes trailing CRLF from the mail's data.
+
+  ## Examples
+
+  iex> mail = Mail.new("a@b.com")
+  ...>        |> Mail.add_data("hello\r\n\r\n")
+  ...>        |> Mail.trim_trailing_crlf()
+  iex> mail.data
+  "hello\r\n"
   """
   @spec trim_trailing_crlf(t()) :: t()
   def trim_trailing_crlf(mail) do
@@ -58,5 +66,10 @@ defmodule SMTPProtocol.Mail do
       mail
       | data: trimmed_data
     }
+  end
+
+  @doc """
+  """
+  def has_8bitdata?(mail) do
   end
 end
