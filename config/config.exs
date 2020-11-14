@@ -2,8 +2,6 @@ import Config
 
 config :funnel, Funnel.Repo,
   database: "funnel_repo",
-  username: "postgres",
-  password: "postgres",
   hostname: "localhost"
 
 config :funnel,
