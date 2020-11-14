@@ -80,7 +80,13 @@ defmodule SMTPProtocol.Client do
   @impl true
   def handle_call({:send, mail}, _from, s = {config, remote}) do
     {from, _} = mail.reverse
+
+    if Mail.has_8bitdata?(mail) do
+    end
+
     Connection.send(remote, "MAIL FROM:<#{from}>\r\n")
+    {:ok, 250, _} = receive_response(remote)
+
     {:reply, :ok, s}
   end
 

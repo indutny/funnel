@@ -14,11 +14,11 @@ defmodule SMTPProtocol do
   @type command :: {command_kind(), command_extra(), command_trailing()}
 
   @type response :: {non_neg_integer(), String.t(), :not_last | :last}
+
   @type extension ::
           :mime8bit
-          | :pipelining
-          | {:size, non_neg_integer() | :unlimited | :unspecified}
           | :smtputf8
+          | {:size, non_neg_integer() | :unlimited | :unspecified}
           | {:unknown, String.t()}
 
   @commands %{
@@ -97,7 +97,7 @@ defmodule SMTPProtocol do
       iex> SMTPProtocol.parse_response("not response\r\n")
       {:error, "Invalid response line"}
   """
-  @spec parse_response(String.t()) :: response() | {:error, String.t()}
+  @spec parse_response(String.t()) :: {:ok, response()} | {:error, String.t()}
   def parse_response(line) do
     case Regex.run(~r/^([2-5]\d\d)?(?:([-\s])\s*(.*?))?(?:\r\n|\n)$/, line) do
       nil ->
@@ -121,9 +121,6 @@ defmodule SMTPProtocol do
 
       iex> SMTPProtocol.parse_extension("8BITMIME")
       :mime8bit
-
-      iex> SMTPProtocol.parse_extension("PIPELINING")
-      :pipelining
 
       iex> SMTPProtocol.parse_extension("SIZE")
       {:size, :unspecified}
@@ -154,10 +151,6 @@ defmodule SMTPProtocol do
   @spec parse_extension_parts([String.t()]) :: extension() | {:error, String.t()}
   defp parse_extension_parts(["8BITMIME" | _]) do
     :mime8bit
-  end
-
-  defp parse_extension_parts(["PIPELINING" | _]) do
-    :pipelining
   end
 
   defp parse_extension_parts(["SIZE"]) do
