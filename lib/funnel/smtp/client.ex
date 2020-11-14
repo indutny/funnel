@@ -1,4 +1,4 @@
-defmodule SMTPProtocol.Client do
+defmodule Funnel.SMTP.Client do
   @moduledoc """
   SMTP Client connection implementation.
   """
@@ -8,15 +8,15 @@ defmodule SMTPProtocol.Client do
   use TypedStruct
   require Logger
 
-  alias SMTPProtocol.Connection
-  alias SMTPProtocol.Mail
+  alias Funnel.SMTP.Connection
+  alias Funnel.SMTP.Mail
 
   @type t :: GenServer.server()
 
   defmodule Config do
     typedstruct do
       field :local_domain, :inet.hostname(), enforce: true
-      field :extensions, [SMTPProtocol.extension()], default: []
+      field :extensions, [Funnel.SMTP.extension()], default: []
     end
 
     @spec supports_8bit?(t()) :: boolean()
@@ -82,7 +82,7 @@ defmodule SMTPProtocol.Client do
           err
       end
 
-    extensions = Enum.map(extensions, &SMTPProtocol.parse_extension/1)
+    extensions = Enum.map(extensions, &Funnel.SMTP.parse_extension/1)
 
     config = %Config{config | extensions: extensions}
 
@@ -114,7 +114,7 @@ defmodule SMTPProtocol.Client do
           {:ok, non_neg_integer(), [String.t()]} | {:error, String.t()}
   defp receive_response(remote) do
     with {:ok, line} <- Connection.recv_line(remote),
-         {:ok, {code, message, order}} <- SMTPProtocol.parse_response(line) do
+         {:ok, {code, message, order}} <- Funnel.SMTP.parse_response(line) do
       response = {:ok, code, [message]}
 
       case order do

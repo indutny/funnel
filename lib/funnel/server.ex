@@ -1,4 +1,4 @@
-defmodule SMTPServer do
+defmodule Funnel.Server do
   use Task, restart: :permanent
   use TypedStruct
 
@@ -16,15 +16,15 @@ defmodule SMTPServer do
     field :max_line_size, non_neg_integer(), default: 512
   end
 
-  alias SMTPProtocol.Server, as: Connection
+  alias Funnel.SMTP.Server, as: Connection
 
   @moduledoc """
-  `SMTPServer` implementation.
+  Server implementation.
   """
 
   @spec start_link(Config.t(), [term()]) :: {:ok, pid(), map()}
   def start_link(config, _opts \\ []) do
-    {:ok, pid} = Task.start_link(SMTPServer, :listen, [self(), config])
+    {:ok, pid} = Task.start_link(Funnel.Server, :listen, [self(), config])
 
     receive do
       {:port, port} ->
@@ -62,7 +62,7 @@ defmodule SMTPServer do
 
     {:ok, pid} =
       Task.Supervisor.start_child(
-        SMTPServer.ConnectionSupervisor,
+        Funnel.ConnectionSupervisor,
         fn ->
           remote =
             receive do
@@ -91,7 +91,7 @@ defmodule SMTPServer do
         local_domain: config.local_domain,
         remote_domain: remote_domain,
         max_mail_size: config.max_mail_size,
-        mail_scheduler: {SMTPServer.MailScheduler, SMTPServer.MailScheduler}
+        mail_scheduler: {Funnel.MailScheduler, Funnel.MailScheduler}
       })
 
     send_response(remote, Connection.handshake(conn))

@@ -1,9 +1,9 @@
-defmodule SMTPProtocolServerTest do
+defmodule FunnelSMTPServerTest do
   use ExUnit.Case, async: true
-  doctest SMTPProtocol.Server
+  doctest Funnel.SMTP.Server
 
-  alias SMTPProtocol.Server
-  alias SMTPProtocolTest.MockScheduler
+  alias Funnel.SMTP.Server
+  alias FunnelSMTPTest.MockScheduler
 
   @moduletag capture_log: true
   @max_mail_size 1024

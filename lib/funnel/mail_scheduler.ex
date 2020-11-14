@@ -1,6 +1,6 @@
-defmodule SMTPServer.MailScheduler do
+defmodule Funnel.MailScheduler do
   use GenServer
-  @behaviour SMTPProtocol.MailScheduler
+  @behaviour Funnel.SMTP.MailScheduler
 
   @spec start_link(GenServer.options()) :: GenServer.on_start()
   def start_link(opts \\ []) do

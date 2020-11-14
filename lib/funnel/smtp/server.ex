@@ -1,4 +1,4 @@
-defmodule SMTPProtocol.Server do
+defmodule Funnel.SMTP.Server do
   @moduledoc """
   SMTP Server connection implementation. Receives line input from remote end
   and generates responses to be sent back.
@@ -13,11 +13,11 @@ defmodule SMTPProtocol.Server do
     field :local_domain, :inet.hostname()
     field :remote_domain, :inet.hostname()
     field :max_mail_size, non_neg_integer()
-    field :mail_scheduler, {atom(), SMTPProtocol.MailScheduler.t()}
+    field :mail_scheduler, {atom(), Funnel.SMTP.MailScheduler.t()}
   end
 
-  alias SMTPProtocol.Mail
-  alias SMTPProtocol.Server.Config
+  alias Funnel.SMTP.Mail
+  alias Funnel.SMTP.Server.Config
 
   @type t :: GenServer.server()
 
@@ -79,7 +79,7 @@ defmodule SMTPProtocol.Server do
 
         _ ->
           line
-          |> SMTPProtocol.parse_command()
+          |> Funnel.SMTP.parse_command()
       end
 
     case handle_line(config, state, line) do
@@ -94,7 +94,7 @@ defmodule SMTPProtocol.Server do
     end
   end
 
-  @spec handle_line(Config.t(), state(), SMTPProtocol.command()) :: line_response()
+  @spec handle_line(Config.t(), state(), Funnel.SMTP.command()) :: line_response()
   defp handle_line(config, state, line)
 
   defp handle_line(_, :handshake, {:rset, "", _}) do
@@ -139,7 +139,7 @@ defmodule SMTPProtocol.Server do
   end
 
   defp handle_line(config, :main, {:mail_from, reverse_path, _}) do
-    case SMTPProtocol.parse_mail_and_params(reverse_path, :mail) do
+    case Funnel.SMTP.parse_mail_and_params(reverse_path, :mail) do
       {:ok, reverse_path, params} ->
         case receive_reverse_path(config, reverse_path, params) do
           {:ok, mail} ->
@@ -158,7 +158,7 @@ defmodule SMTPProtocol.Server do
   end
 
   defp handle_line(config, {:rcpt, mail}, {:rcpt_to, forward_path, _}) do
-    case SMTPProtocol.parse_mail_and_params(forward_path, :rcpt) do
+    case Funnel.SMTP.parse_mail_and_params(forward_path, :rcpt) do
       {:ok, forward_path, params} ->
         {:ok, new_mail} = receive_forward_path(config, mail, forward_path, params)
         {:response, {:rcpt, new_mail}, 250, "OK"}
@@ -187,7 +187,7 @@ defmodule SMTPProtocol.Server do
       Logger.info("Got new mail")
 
       mail = Mail.trim_trailing_crlf(mail)
-      :ok = SMTPProtocol.MailScheduler.schedule(config.mail_scheduler, mail)
+      :ok = Funnel.SMTP.MailScheduler.schedule(config.mail_scheduler, mail)
 
       {:response, :main, 250, "OK"}
     end

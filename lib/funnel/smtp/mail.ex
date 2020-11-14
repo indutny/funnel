@@ -1,18 +1,18 @@
-defmodule SMTPProtocol.Mail do
+defmodule Funnel.SMTP.Mail do
   use TypedStruct
 
   typedstruct do
-    field :reverse, {String.t(), SMTPProtocol.reverse_params()}, enforce: true
-    field :forward, [{String.t(), SMTPProtocol.forward_params()}], default: []
+    field :reverse, {String.t(), Funnel.SMTP.reverse_params()}, enforce: true
+    field :forward, [{String.t(), Funnel.SMTP.forward_params()}], default: []
     field :data, binary(), enforce: true
   end
 
-  alias SMTPProtocol.Mail
+  alias Funnel.SMTP.Mail
 
   @doc """
   Create new empty mail
   """
-  @spec new(String.t(), SMTPProtocol.reverse_params()) :: t()
+  @spec new(String.t(), Funnel.SMTP.reverse_params()) :: t()
   def new(reverse_path, reverse_params \\ %{}, data \\ "") do
     %Mail{
       reverse: {reverse_path, reverse_params},
@@ -23,7 +23,7 @@ defmodule SMTPProtocol.Mail do
   @doc """
   Adds new forward path to the mail.
   """
-  @spec add_forward(t(), String.t(), SMTPProtocol.forward_params()) :: t()
+  @spec add_forward(t(), String.t(), Funnel.SMTP.forward_params()) :: t()
   def add_forward(mail, forward_path, forward_params \\ %{}) do
     %Mail{
       mail
@@ -52,8 +52,8 @@ defmodule SMTPProtocol.Mail do
 
   ## Examples
 
-      iex> mail = Mail.new("a@b.com", %{}, "hello\r\n\r\n")
-      ...>        |> Mail.trim_trailing_crlf()
+      iex> mail = Funnel.SMTP.Mail.new("a@b.com", %{}, "hello\r\n\r\n")
+      ...>        |> Funnel.SMTP.Mail.trim_trailing_crlf()
       iex> mail.data
       "hello\r\n"
   """
@@ -73,12 +73,12 @@ defmodule SMTPProtocol.Mail do
 
   ## Examples
 
-      iex> Mail.new("a@b.com", %{}, "ohai")
-      ...> |> Mail.has_8bitdata?()
+      iex> Funnel.SMTP.Mail.new("a@b.com", %{}, "ohai")
+      ...> |> Funnel.SMTP.Mail.has_8bitdata?()
       false
 
-      iex> Mail.new("a@b.com", %{}, "こんにちは")
-      ...> |> Mail.has_8bitdata?()
+      iex> Funnel.SMTP.Mail.new("a@b.com", %{}, "こんにちは")
+      ...> |> Funnel.SMTP.Mail.has_8bitdata?()
       true
   """
   def has_8bitdata?(mail) do

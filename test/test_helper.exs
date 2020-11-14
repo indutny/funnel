@@ -1,6 +1,6 @@
-defmodule SMTPProtocolTest.MockScheduler do
+defmodule FunnelSMTPTest.MockScheduler do
   use GenServer
-  @behaviour SMTPProtocol.MailScheduler
+  @behaviour Funnel.SMTP.MailScheduler
 
   @spec start_link(GenServer.options()) :: GenServer.on_start()
   def start_link(opts \\ []) do
@@ -43,12 +43,12 @@ defmodule SMTPProtocolTest.MockScheduler do
   end
 end
 
-defmodule SMTPProtocolTest.MockConnection do
+defmodule FunnelSMTPTest.MockConnection do
   use GenServer
 
-  @behaviour SMTPProtocol.Connection
+  @behaviour Funnel.SMTP.Connection
 
-  alias SMTPProtocol.Server
+  alias Funnel.SMTP.Server
 
   @spec start_link(Server.t(), GenServer.options()) :: GenServer.on_start()
   def start_link(remote, opts \\ []) do

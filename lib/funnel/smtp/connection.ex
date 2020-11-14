@@ -1,4 +1,4 @@
-defmodule SMTPProtocol.Connection do
+defmodule Funnel.SMTP.Connection do
   @type t :: GenServer.server()
   @type impl :: {atom(), t()}
 

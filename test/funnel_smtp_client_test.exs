@@ -1,13 +1,13 @@
-defmodule SMTPProtocolClientTest do
+defmodule FunnelSMTPClientTest do
   use ExUnit.Case, async: true
-  doctest SMTPProtocol.Client
+  doctest Funnel.SMTP.Client
 
-  alias SMTPProtocol.Client
-  alias SMTPProtocol.Server
-  alias SMTPProtocol.Mail
+  alias Funnel.SMTP.Client
+  alias Funnel.SMTP.Server
+  alias Funnel.SMTP.Mail
 
-  alias SMTPProtocolTest.MockScheduler
-  alias SMTPProtocolTest.MockConnection
+  alias FunnelSMTPTest.MockScheduler
+  alias FunnelSMTPTest.MockConnection
 
   @moduletag capture_log: true
 
