@@ -10,8 +10,11 @@ defmodule Funnel.Application do
     port = Application.fetch_env!(:funnel, :port)
 
     children = [
+      {Funnel.Repo, []},
+
       {Task.Supervisor, name: Funnel.ConnectionSupervisor},
       {Funnel.MailScheduler, name: Funnel.MailScheduler},
+
       {Server, %Server.Config{port: port}}
     ]
 
