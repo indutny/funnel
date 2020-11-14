@@ -28,25 +28,6 @@ defmodule SMTPProtocolTest do
                {:error, :unknown_param}
     end
 
-    test "should parse ALT-ADDRESS in both MAIL and RCPT" do
-      [:mail, :rcpt]
-      |> Enum.map(fn mode ->
-        assert SMTPProtocol.parse_mail_params(
-                 "ALT-ADDRESS=unicode@b.com",
-                 mode
-               ) ==
-                 {:ok, %{alt_address: "unicode@b.com"}}
-      end)
-    end
-
-    test "should parse xtext in ALT-ADDRESS" do
-      assert SMTPProtocol.parse_mail_params(
-               "ALT-ADDRESS=unicode+2Bok@b.com",
-               :mail
-             ) ==
-               {:ok, %{alt_address: "unicode+ok@b.com"}}
-    end
-
     test "should parse BODY in MAIL" do
       assert SMTPProtocol.parse_mail_and_params(
                "<a@b.com> BODY=7BIT",

@@ -13,9 +13,21 @@ defmodule SMTPProtocol.Client do
 
   @type t :: GenServer.server()
 
-  typedstruct module: Config do
-    field :local_domain, :inet.hostname(), enforce: true
-    field :extensions, [String.t()], default: []
+  defmodule Config do
+    typedstruct do
+      field :local_domain, :inet.hostname(), enforce: true
+      field :extensions, [SMTPProtocol.extension()], default: []
+    end
+
+    @spec supports_8bit?(t()) :: boolean()
+    def supports_8bit?(config) do
+      Enum.any?(config.extensions, &(&1 == :mime8bit))
+    end
+
+    @spec supports_size?(t()) :: boolean()
+    def supports_size?(config) do
+      Enum.any?(config.extensions, &match?({:size, _}, &1))
+    end
   end
 
   # Public API
@@ -78,25 +90,28 @@ defmodule SMTPProtocol.Client do
   end
 
   @impl true
-  def handle_call({:send, mail}, _from, s = {config, remote}) do
-    {from, _} = mail.reverse
+  def handle_call({:send, mail}, _from, s = {config, _remote}) do
+    cond do
+      Mail.has_8bitdata?(mail) and not Config.supports_8bit?(config) ->
+        {:reply, {:error, "Server does not support 8BIT mail"}}
 
-    if Mail.has_8bitdata?(mail) do
+      true ->
+        {:reply, do_send_mail(s, mail), s}
     end
-
-    Connection.send(remote, "MAIL FROM:<#{from}>\r\n")
-    {:ok, 250, _} = receive_response(remote)
-
-    {:reply, :ok, s}
   end
 
   @impl true
-  def handle_call(:quit, _from, s = {config, remote}) do
+  def handle_call(:quit, _from, s = {_config, remote}) do
+    Connection.send(remote, "QUIT\r\n")
+    {:ok, 221, _} = receive_response(remote)
+
     {:reply, Connection.close(remote), s}
   end
 
   # Private helpers
 
+  @spec receive_response(Connection.t()) ::
+          {:ok, non_neg_integer(), [String.t()]} | {:error, String.t()}
   defp receive_response(remote) do
     with {:ok, line} <- Connection.recv_line(remote),
          {:ok, {code, message, order}} <- SMTPProtocol.parse_response(line) do
@@ -116,5 +131,40 @@ defmodule SMTPProtocol.Client do
           end
       end
     end
+  end
+
+  @spec do_send_mail({Config.t(), Connection.t()}, Mail.t()) ::
+          :ok | {:error, String.t()}
+  defp do_send_mail({config, remote}, mail) do
+    {from, _params} = mail.reverse
+
+    from = "MAIL FROM:<#{from}>"
+
+    from =
+      if Config.supports_size?(config) do
+        from <> " SIZE=#{Mail.data_size(mail)}"
+      else
+        from
+      end
+
+    Connection.send(remote, from <> "\r\n")
+    {:ok, 250, _} = receive_response(remote)
+
+    for {to, _params} <- mail.forward do
+      Connection.send(remote, "RCPT TO:<#{to}>\r\n")
+      {:ok, 250, _} = receive_response(remote)
+    end
+
+    Connection.send(remote, "DATA\r\n")
+    {:ok, 354, _} = receive_response(remote)
+
+    Connection.send(remote, mail.data)
+
+    # NOTE: Splitted in two to make tests happy.
+    Connection.send(remote, "\r\n")
+    Connection.send(remote, ".\r\n")
+    {:ok, 250, _} = receive_response(remote)
+
+    :ok
   end
 end

@@ -123,6 +123,10 @@ defmodule SMTPProtocolTest.MockConnection do
   defp pop_response([{mode, code, last_line} | tail]) when is_bitstring(last_line) do
     pop_response([{mode, code, [last_line]} | tail])
   end
+
+  defp pop_response([]) do
+    raise "No response to pop!"
+  end
 end
 
 ExUnit.start()

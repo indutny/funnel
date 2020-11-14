@@ -15,8 +15,7 @@ defmodule SMTPProtocolServerTest do
                 "funnel.example greets remote.example",
                 "8BITMIME",
                 "PIPELINING",
-                "SIZE #{@max_mail_size}",
-                "SMTPUTF8"
+                "SIZE #{@max_mail_size}"
               ]}
 
   setup do

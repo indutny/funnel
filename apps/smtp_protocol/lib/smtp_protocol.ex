@@ -17,7 +17,7 @@ defmodule SMTPProtocol do
 
   @type extension ::
           :mime8bit
-          | :smtputf8
+          | :starttls
           | {:size, non_neg_integer() | :unlimited | :unspecified}
           | {:unknown, String.t()}
 
@@ -131,8 +131,8 @@ defmodule SMTPProtocol do
       iex> SMTPProtocol.parse_extension("SIZE 0")
       {:size, :unlimited}
 
-      iex> SMTPProtocol.parse_extension("SMTPUTF8")
-      :smtputf8
+      iex> SMTPProtocol.parse_extension("STARTTLS")
+      :starttls
 
       iex> SMTPProtocol.parse_extension("BOO")
       {:unknown, "BOO"}
@@ -171,8 +171,8 @@ defmodule SMTPProtocol do
     end
   end
 
-  defp parse_extension_parts(["SMTPUTF8" | _]) do
-    :smtputf8
+  defp parse_extension_parts(["STARTTLS" | _]) do
+    :starttls
   end
 
   defp parse_extension_parts([name | _]) do
@@ -373,12 +373,6 @@ defmodule SMTPProtocol do
     case Integer.parse(value) do
       {size, ""} -> {:ok, :size, size}
       _ -> {:error, "Invalid value of SIZE parameter"}
-    end
-  end
-
-  defp parse_mail_param(_, "ALT-ADDRESS", value) do
-    with {:ok, mailbox} <- parse_xtext(value) do
-      {:ok, :alt_address, mailbox}
     end
   end
 

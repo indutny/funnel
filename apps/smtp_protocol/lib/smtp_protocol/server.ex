@@ -124,8 +124,7 @@ defmodule SMTPProtocol.Server do
        # TODO(indutny): "STARTTLS",
        "8BITMIME",
        "PIPELINING",
-       "SIZE #{config.max_mail_size}",
-       "SMTPUTF8"
+       "SIZE #{config.max_mail_size}"
      ]}
   end
 

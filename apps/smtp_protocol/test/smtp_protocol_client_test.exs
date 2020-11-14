@@ -52,6 +52,8 @@ defmodule SMTPProtocolClientTest do
     assert Client.quit(client) == :ok
 
     assert {:mail, mail} = MockScheduler.pop(scheduler)
-    assert mail == outgoing
+    assert mail.reverse == {"i@client.example", %{size: 22}}
+    assert mail.forward == [{"you@server.example", %{}}]
+    assert mail.data == outgoing.data
   end
 end
