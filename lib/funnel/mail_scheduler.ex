@@ -20,6 +20,18 @@ defmodule Funnel.MailScheduler do
     GenServer.call(server, :pop)
   end
 
+  @impl true
+  def allow_path?(_, side, email) do
+    case side do
+      :mail_from ->
+        Funnel.AllowList.contains?(email)
+
+      :rcpt_to ->
+        # TODO(indutny): implement me
+        true
+    end
+  end
+
   # GenServer implementation
 
   @impl true

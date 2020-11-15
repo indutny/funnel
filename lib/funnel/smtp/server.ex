@@ -147,6 +147,10 @@ defmodule Funnel.SMTP.Server do
 
           {:error, :max_size_exceeded} ->
             {:response, :main, 552, "Mail exceeds maximum allowed size"}
+
+          {:error, :access_denied} ->
+            # TODO(indutny): write the challenge
+            {:response, :main, 550, "Please solve the challenge to proceed"}
         end
 
       {:error, :unknown_param} ->
@@ -238,13 +242,19 @@ defmodule Funnel.SMTP.Server do
 
   @spec receive_reverse_path(map(), String.t(), map()) ::
           {:ok, Mail.t()}
-          | {:error, atom()}
+          | {:error, :access_denied | :max_size_exceeded}
   defp receive_reverse_path(config, reverse_path, params) do
-    case Map.get(params, :size, config.max_mail_size) do
-      size when size > config.max_mail_size ->
+    is_allowed? = Funnel.SMTP.MailScheduler.allow_path?(
+      config.mail_scheduler, :mail_from, reverse_path)
+
+    cond do
+      not is_allowed? ->
+        {:error, :access_denied}
+
+      Map.get(params, :size, config.max_mail_size) > config.max_mail_size ->
         {:error, :max_size_exceeded}
 
-      _actual_size ->
+      true ->
         mail = Mail.new(reverse_path, params)
         {:ok, mail}
     end

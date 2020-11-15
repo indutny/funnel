@@ -19,6 +19,11 @@ defmodule FunnelSMTPTest.MockScheduler do
     GenServer.call(server, :pop)
   end
 
+  @impl true
+  def allow_path?(_, _, _) do
+    true
+  end
+
   # GenServer implementation
 
   @impl true
