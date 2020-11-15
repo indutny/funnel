@@ -1,9 +1,12 @@
-defmodule AllowList.Entry do
-  use Ecto.Schema
+defmodule Funnel.AllowList do
+  import Ecto.Query
 
-  schema "allowlist" do
-    field :user, :string
-    field :domain, :string
-    field :created_at, :utc_datetime
+  @spec contains?(String.t()) :: boolean()
+  def contains?(email) do
+    [user, domain] = String.split(email, "@", parts: 2)
+
+    Funnel.Repo.exists?(
+      Funnel.AllowList.Entry
+      |> where([p], p.user == ^user or p.domain == ^domain))
   end
 end
