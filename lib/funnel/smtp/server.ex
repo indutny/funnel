@@ -150,7 +150,7 @@ defmodule Funnel.SMTP.Server do
 
           {:error, :access_denied} ->
             # TODO(indutny): write the challenge
-            {:response, :main, 550, "Please solve the challenge to proceed"}
+            {:response, :main, 450, "Please solve the challenge to proceed"}
         end
 
       {:error, :unknown_param} ->
