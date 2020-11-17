@@ -7,6 +7,7 @@ defmodule FunnelSMTPServerTest do
 
   @moduletag capture_log: true
   @max_mail_size 1024
+  @max_anonymous_mail_size 16
   @ok {:normal, 250, "OK"}
 
   # Just a constant
@@ -28,6 +29,7 @@ defmodule FunnelSMTPServerTest do
            local_domain: "funnel.example",
            remote_domain: "remote.example",
            max_mail_size: @max_mail_size,
+           max_anonymous_mail_size: @max_anonymous_mail_size,
            mail_scheduler: {MockScheduler, scheduler}
          }}
       )
@@ -167,6 +169,28 @@ defmodule FunnelSMTPServerTest do
 
     # But allow empty reverse path
     assert send_line(conn, "MAIL FROM:<>") == @ok
+  end
+
+  test "should apply different size limit for empty reverse path", %{conn: conn} do
+    handshake!(conn)
+
+    assert send_lines(conn, [
+             "MAIL FROM:<>",
+             "RCPT TO:<postmaster>",
+             "DATA"
+           ]) == [
+             @ok,
+             @ok,
+             {:normal, 354, "Start mail input; end with <CRLF>.<CRLF>"}
+           ]
+
+    assert send_lines(conn, [
+             "Somewhat longer email. Definitely > 16 characters",
+             "."
+           ]) == [
+             :no_response,
+             {:normal, 552, "Mail exceeds maximum allowed size"}
+           ]
   end
 
   test "should check forward path against forwardlist", %{conn: conn} do

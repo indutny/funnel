@@ -12,6 +12,7 @@ defmodule FunnelSMTP.Server do
   typedstruct module: Config, enforce: true do
     field :local_domain, :inet.hostname()
     field :remote_domain, :inet.hostname()
+    field :max_anonymous_mail_size, non_neg_integer(), default: 1024
     field :max_mail_size, non_neg_integer()
     field :mail_scheduler, {atom(), FunnelSMTP.MailScheduler.t()}
   end
@@ -193,7 +194,14 @@ defmodule FunnelSMTP.Server do
   end
 
   defp handle_line(config, {:data, mail, :crlf}, ".\r\n") do
-    if Mail.data_size(mail) > config.max_mail_size + 2 + 1024 do
+    max_mail_size =
+      if Mail.is_anonymous?(mail) do
+        config.max_anonymous_mail_size
+      else
+        config.max_mail_size
+      end
+
+    if Mail.data_size(mail) > max_mail_size + 2 do
       Logger.info("Mail size exceeded")
       {:response, :main, 552, "Mail exceeds maximum allowed size"}
     else

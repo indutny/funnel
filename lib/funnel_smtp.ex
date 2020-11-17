@@ -6,6 +6,8 @@ defmodule FunnelSMTP do
   @type reverse_params :: map()
   @type forward_params :: map()
   @type mail_path :: :null | :postmaster | String.t()
+  @type reverse_path :: :null | String.t()
+  @type forward_path :: :postmaster | String.t()
 
   @type command_kind ::
           :helo | :ehlo | :mail_from | :rcpt_to | :data | :rset | :noop | :quit | :vrfy | :help

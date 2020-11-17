@@ -3,9 +3,14 @@ defmodule FunnelSMTP.Mail do
 
   @max_forward_count 100
 
+  @type forward_path :: FunnelSMTP.forward_path()
+  @type reverse_path :: FunnelSMTP.reverse_path()
+  @type forward_params :: FunnelSMTP.forward_params()
+  @type reverse_params :: FunnelSMTP.reverse_params()
+
   typedstruct do
-    field :reverse, {String.t(), FunnelSMTP.reverse_params()}, enforce: true
-    field :forward, [{String.t(), FunnelSMTP.forward_params()}], default: []
+    field :reverse, {reverse_path(), reverse_params()}, enforce: true
+    field :forward, [{forward_path(), forward_params()}], default: []
     field :data, binary(), enforce: true
   end
 
@@ -14,7 +19,7 @@ defmodule FunnelSMTP.Mail do
   @doc """
   Create new empty mail
   """
-  @spec new(String.t(), FunnelSMTP.reverse_params()) :: t()
+  @spec new(reverse_path(), reverse_params()) :: t()
   def new(reverse_path, reverse_params \\ %{}, data \\ "") do
     %Mail{
       reverse: {reverse_path, reverse_params},
@@ -25,7 +30,7 @@ defmodule FunnelSMTP.Mail do
   @doc """
   Adds new forward path to the mail.
   """
-  @spec add_forward(t(), String.t(), FunnelSMTP.forward_params()) ::
+  @spec add_forward(t(), forward_path(), forward_params()) ::
           {:ok, t()} | {:error, :forward_count_exceeded}
   def add_forward(mail, forward_path, forward_params \\ %{}) do
     if length(mail.forward) < @max_forward_count do
@@ -90,9 +95,31 @@ defmodule FunnelSMTP.Mail do
       ...> |> FunnelSMTP.Mail.has_8bitdata?()
       true
   """
+  @spec has_8bitdata?(t()) :: boolean()
   def has_8bitdata?(mail) do
     mail.data
     |> :binary.bin_to_list()
     |> Enum.any?(&(&1 > 0x7F))
+  end
+
+  @doc """
+  Checks if mail's reverse path is empty.
+
+  ## Examples
+
+      iex> FunnelSMTP.Mail.new(:null)
+      ...> |> FunnelSMTP.Mail.is_anonymous?()
+      true
+
+      iex> FunnelSMTP.Mail.new("a@b.com")
+      ...> |> FunnelSMTP.Mail.is_anonymous?()
+      false
+  """
+  @spec is_anonymous?(t()) :: boolean()
+  def is_anonymous?(mail) do
+    case mail.reverse do
+      {:null, _} -> true
+      _ -> false
+    end
   end
 end
