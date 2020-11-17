@@ -1,8 +1,8 @@
-defmodule Funnel.Repo.Migrations.CreateForwardlist do
+defmodule Funnel.Repo.Migrations.CreateMailQueue do
   use Ecto.Migration
 
   def change do
-    create table("forwardlist") do
+    create table("mail_queue") do
       add :from, :string
       add :to, :string
       add :created_at, :utc_datetime

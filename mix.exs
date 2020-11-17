@@ -8,7 +8,8 @@ defmodule Funnel.MixProject do
       elixir: "~> 1.11",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      elixirc_paths: elixirc_paths(Mix.env())
+      elixirc_paths: elixirc_paths(Mix.env()),
+      aliases: aliases()
     ]
   end
 
@@ -44,4 +45,10 @@ defmodule Funnel.MixProject do
 
   defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(_), do: ["lib"]
+
+  defp aliases do
+    [
+      test: ["ecto.create --quiet", "ecto.migrate", "test"]
+    ]
+  end
 end

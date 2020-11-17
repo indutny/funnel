@@ -16,7 +16,7 @@ defmodule Funnel.Server do
     field :max_line_size, non_neg_integer(), default: 512
   end
 
-  alias FunnelSMTP.Server, as: Connection
+  alias FunnelSMTP.Server, as: SMTPServer
 
   @moduledoc """
   Server implementation.
@@ -87,23 +87,23 @@ defmodule Funnel.Server do
     {:hostent, remote_domain, _, _, _, _} = remote_host
 
     {:ok, conn} =
-      Connection.start_link(%Connection.Config{
+      SMTPServer.start_link(%SMTPServer.Config{
         local_domain: config.local_domain,
         remote_domain: remote_domain,
         max_mail_size: config.max_mail_size,
         mail_scheduler: {Funnel.MailScheduler, Funnel.MailScheduler}
       })
 
-    send_response(remote, Connection.handshake(conn))
+    send_response(remote, SMTPServer.handshake(conn))
 
     serve(config, remote, conn)
   end
 
-  @spec serve(Config.t(), :inet.socket(), Connection.t()) :: nil
+  @spec serve(Config.t(), :inet.socket(), SMTPServer.t()) :: nil
   defp serve(config, remote, conn) do
     case :gen_tcp.recv(remote, 0, config.read_timeout) do
       {:ok, line} ->
-        response = Connection.respond_to(conn, line)
+        response = SMTPServer.respond_to(conn, line)
 
         send_response(remote, response)
         serve(config, remote, conn)
@@ -113,7 +113,7 @@ defmodule Funnel.Server do
     end
   end
 
-  @spec send_response(:inet.socket(), Connection.response()) :: nil
+  @spec send_response(:inet.socket(), SMTPServer.response()) :: nil
   defp send_response(_, :no_response) do
     # no-op
   end
@@ -134,7 +134,7 @@ defmodule Funnel.Server do
   @spec send_response(
           :inet.socket(),
           :not_last | :last,
-          Connection.response()
+          SMTPServer.response()
         ) :: nil
   defp send_response(remote, order, {mode, code, line}) do
     response =
