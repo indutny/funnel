@@ -140,7 +140,7 @@ defmodule FunnelSMTPServerTest do
 
     assert mail.forward == [
              {"second@rcpt", %{}},
-             {"allowed@rcpt", %{}},
+             {"allowed@rcpt", %{}}
            ]
 
     assert mail.data == "Hey!\r\nHow are you?\n."
@@ -150,18 +150,20 @@ defmodule FunnelSMTPServerTest do
     handshake!(conn)
 
     assert send_line(conn, "MAIL FROM:<allowed@sender>") == @ok
+
     for _ <- 0..99 do
       assert send_line(conn, "RCPT TO:<allowed@rcpt>") == @ok
     end
+
     assert send_line(conn, "RCPT TO:<allowed@rcpt>") ==
-      {:normal, 452, "Too many recipients"}
+             {:normal, 452, "Too many recipients"}
   end
 
   test "should check reverse path against allowlist", %{conn: conn} do
     handshake!(conn)
 
     assert send_line(conn, "MAIL FROM:<disallowed@sender>") ==
-      {:normal, 450, "Please solve the challenge to proceed"}
+             {:normal, 450, "Please solve the challenge to proceed"}
 
     # But allow empty reverse path
     assert send_line(conn, "MAIL FROM:<>") == @ok
@@ -171,8 +173,9 @@ defmodule FunnelSMTPServerTest do
     handshake!(conn)
 
     assert send_line(conn, "MAIL FROM:<allowed@sender>") == @ok
+
     assert send_line(conn, "RCPT TO:<unknown@rcpt>") ==
-      {:normal, 550, "Mailbox not found"}
+             {:normal, 550, "Mailbox not found"}
 
     # But allow postmaster
     assert send_line(conn, "RCPT TO:<postmaster>") == @ok

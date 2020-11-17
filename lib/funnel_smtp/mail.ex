@@ -26,13 +26,14 @@ defmodule FunnelSMTP.Mail do
   Adds new forward path to the mail.
   """
   @spec add_forward(t(), String.t(), FunnelSMTP.forward_params()) ::
-    {:ok, t()} | {:error, :forward_count_exceeded}
+          {:ok, t()} | {:error, :forward_count_exceeded}
   def add_forward(mail, forward_path, forward_params \\ %{}) do
     if length(mail.forward) < @max_forward_count do
       mail = %Mail{
         mail
         | forward: [{forward_path, forward_params} | mail.forward]
       }
+
       {:ok, mail}
     else
       {:error, :forward_count_exceeded}

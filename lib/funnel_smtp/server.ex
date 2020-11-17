@@ -95,7 +95,7 @@ defmodule FunnelSMTP.Server do
   end
 
   @spec handle_line(Config.t(), state(), FunnelSMTP.command()) ::
-    line_response()
+          line_response()
   defp handle_line(config, state, line)
 
   defp handle_line(_, :handshake, {:rset, "", _}) do
@@ -155,29 +155,29 @@ defmodule FunnelSMTP.Server do
         end
 
       {:error, :unknown_param} ->
-        {:response, :main, 555,
-          "MAIL FROM parameters not recognized or not implemented"}
+        {:response, :main, 555, "MAIL FROM parameters not recognized or not implemented"}
 
       {:error, msg} ->
         {:response, :main, 553, msg}
     end
   end
 
-  defp handle_line(config, s={:rcpt, mail}, {:rcpt_to, forward_path, _}) do
+  defp handle_line(config, s = {:rcpt, mail}, {:rcpt_to, forward_path, _}) do
     case FunnelSMTP.parse_mail_and_params(forward_path, :rcpt) do
       {:ok, forward_path, params} ->
         case receive_forward_path(config, mail, forward_path, params) do
           {:ok, new_mail} ->
             {:response, {:rcpt, new_mail}, 250, "OK"}
+
           {:error, :forward_count_exceeded} ->
             {:response, s, 452, "Too many recipients"}
+
           {:error, :access_denied} ->
             {:response, s, 550, "Mailbox not found"}
         end
 
       {:error, :unknown_param} ->
-        {:response, s, 555,
-          "RCPT TO parameters not recognized or not implemented"}
+        {:response, s, 555, "RCPT TO parameters not recognized or not implemented"}
 
       {:error, msg} ->
         {:response, s, 553, msg}
@@ -188,8 +188,7 @@ defmodule FunnelSMTP.Server do
     if Enum.empty?(mail.forward) do
       {:response, {:rcpt, mail}, 554, "No valid recipients"}
     else
-      {:response, {:data, mail, trailing}, 354,
-        "Start mail input; end with <CRLF>.<CRLF>"}
+      {:response, {:data, mail, trailing}, 354, "Start mail input; end with <CRLF>.<CRLF>"}
     end
   end
 
@@ -254,16 +253,20 @@ defmodule FunnelSMTP.Server do
           {:ok, Mail.t()}
           | {:error, :access_denied | :max_size_exceeded}
   defp receive_reverse_path(config, reverse_path, params) do
-    is_allowed? = FunnelSMTP.MailScheduler.allow_path?(
-      config.mail_scheduler, :mail_from, reverse_path)
+    is_allowed? =
+      FunnelSMTP.MailScheduler.allow_path?(
+        config.mail_scheduler,
+        :mail_from,
+        reverse_path
+      )
 
     cond do
       not is_allowed? ->
-        Logger.info("Access denied to MAIL FROM:#{inspect reverse_path}")
+        Logger.info("Access denied to MAIL FROM:#{inspect(reverse_path)}")
         {:error, :access_denied}
 
       Map.get(params, :size, config.max_mail_size) > config.max_mail_size ->
-        Logger.info("Max size exceeded MAIL FROM:#{inspect reverse_path}")
+        Logger.info("Max size exceeded MAIL FROM:#{inspect(reverse_path)}")
         {:error, :max_size_exceeded}
 
       true ->
@@ -277,14 +280,21 @@ defmodule FunnelSMTP.Server do
           | {:error, :access_denied}
           | {:error, :forward_count_exceeded}
   defp receive_forward_path(config, mail, forward_path, params) do
-    is_allowed? = FunnelSMTP.MailScheduler.allow_path?(
-      config.mail_scheduler, :rcpt_to, forward_path)
+    is_allowed? =
+      FunnelSMTP.MailScheduler.allow_path?(
+        config.mail_scheduler,
+        :rcpt_to,
+        forward_path
+      )
 
     if is_allowed? do
       Mail.add_forward(mail, forward_path, params)
     else
-      Logger.info("Access denied for RCPT TO:#{inspect forward_path}, " <>
-        "mail=#{inspect mail}")
+      Logger.info(
+        "Access denied for RCPT TO:#{inspect(forward_path)}, " <>
+          "mail=#{inspect(mail)}"
+      )
+
       {:error, :access_denied}
     end
   end

@@ -67,4 +67,3 @@ defmodule FunnelSMTPTest.MockScheduler do
     end
   end
 end
-

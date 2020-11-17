@@ -8,8 +8,7 @@ defmodule FunnelSMTP do
   @type mail_path :: :null | :postmaster | String.t()
 
   @type command_kind ::
-      :helo | :ehlo | :mail_from | :rcpt_to
-      | :data | :rset | :noop | :quit | :vrfy | :help
+          :helo | :ehlo | :mail_from | :rcpt_to | :data | :rset | :noop | :quit | :vrfy | :help
   @type command_extra :: String.t()
   @type command_trailing :: :crlf | :lf
   @type command :: {command_kind(), command_extra(), command_trailing()}
@@ -150,7 +149,7 @@ defmodule FunnelSMTP do
   end
 
   @spec parse_extension_parts([String.t()]) ::
-    extension() | {:error, String.t()}
+          extension() | {:error, String.t()}
   defp parse_extension_parts(["8BITMIME" | _]) do
     :mime8bit
   end

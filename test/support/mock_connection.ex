@@ -83,4 +83,3 @@ defmodule FunnelSMTPTest.MockConnection do
     raise "No response to pop!"
   end
 end
-
