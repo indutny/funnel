@@ -95,7 +95,7 @@ defmodule FunnelSMTPServerTest do
 
     assert send_line(
              conn,
-             "MAIL FROM:<spam@example.com> " <>
+             "MAIL FROM:<allowed@sender> " <>
                "SIZE=#{2 * @max_mail_size}"
            ) ==
              {:normal, 552, "Mail exceeds maximum allowed size"}
@@ -104,7 +104,7 @@ defmodule FunnelSMTPServerTest do
   test "should disallow mail without recipients", %{conn: conn} do
     handshake!(conn)
 
-    assert send_line(conn, "MAIL FROM:<spam@example.com> SIZE=100") == @ok
+    assert send_line(conn, "MAIL FROM:<allowed@sender>") == @ok
 
     assert send_line(conn, "DATA") ==
              {:normal, 554, "No valid recipients"}
@@ -114,9 +114,9 @@ defmodule FunnelSMTPServerTest do
     handshake!(conn)
 
     assert send_lines(conn, [
-             "MAIL FROM:<spam@example.com> SIZE=100",
-             "RCPT TO:<a@funnel.example>",
-             "RCPT TO:<b@funnel.example>",
+             "MAIL FROM:<allowed@sender> SIZE=100",
+             "RCPT TO:<allowed@rcpt>",
+             "RCPT TO:<second@rcpt>",
              "DATA"
            ]) == [
              @ok,
@@ -136,14 +136,46 @@ defmodule FunnelSMTPServerTest do
            ]
 
     {:mail, mail} = MockScheduler.pop(scheduler)
-    assert mail.reverse == {"spam@example.com", %{size: 100}}
+    assert mail.reverse == {"allowed@sender", %{size: 100}}
 
     assert mail.forward == [
-             {"b@funnel.example", %{}},
-             {"a@funnel.example", %{}}
+             {"second@rcpt", %{}},
+             {"allowed@rcpt", %{}},
            ]
 
     assert mail.data == "Hey!\r\nHow are you?\n."
+  end
+
+  test "should limit recipient count", %{conn: conn} do
+    handshake!(conn)
+
+    assert send_line(conn, "MAIL FROM:<allowed@sender>") == @ok
+    for _ <- 0..99 do
+      assert send_line(conn, "RCPT TO:<allowed@rcpt>") == @ok
+    end
+    assert send_line(conn, "RCPT TO:<allowed@rcpt>") ==
+      {:normal, 452, "Too many recipients"}
+  end
+
+  test "should check reverse path against allowlist", %{conn: conn} do
+    handshake!(conn)
+
+    assert send_line(conn, "MAIL FROM:<disallowed@sender>") ==
+      {:normal, 450, "Please solve the challenge to proceed"}
+
+    # But allow empty reverse path
+    assert send_line(conn, "MAIL FROM:<>") == @ok
+  end
+
+  test "should check forward path against forwardlist", %{conn: conn} do
+    handshake!(conn)
+
+    assert send_line(conn, "MAIL FROM:<allowed@sender>") == @ok
+    assert send_line(conn, "RCPT TO:<unknown@rcpt>") ==
+      {:normal, 550, "Mailbox not found"}
+
+    # But allow postmaster
+    assert send_line(conn, "RCPT TO:<postmaster>") == @ok
   end
 
   # Helpers

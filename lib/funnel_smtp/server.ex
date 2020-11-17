@@ -94,7 +94,8 @@ defmodule FunnelSMTP.Server do
     end
   end
 
-  @spec handle_line(Config.t(), state(), FunnelSMTP.command()) :: line_response()
+  @spec handle_line(Config.t(), state(), FunnelSMTP.command()) ::
+    line_response()
   defp handle_line(config, state, line)
 
   defp handle_line(_, :handshake, {:rset, "", _}) do
@@ -154,28 +155,32 @@ defmodule FunnelSMTP.Server do
         end
 
       {:error, :unknown_param} ->
-        {:response, :main, 555, "MAIL FROM parameters not recognized or not implemented"}
+        {:response, :main, 555,
+          "MAIL FROM parameters not recognized or not implemented"}
 
       {:error, msg} ->
         {:response, :main, 553, msg}
     end
   end
 
-  defp handle_line(config, {:rcpt, mail}, {:rcpt_to, forward_path, _}) do
+  defp handle_line(config, s={:rcpt, mail}, {:rcpt_to, forward_path, _}) do
     case FunnelSMTP.parse_mail_and_params(forward_path, :rcpt) do
       {:ok, forward_path, params} ->
         case receive_forward_path(config, mail, forward_path, params) do
           {:ok, new_mail} ->
             {:response, {:rcpt, new_mail}, 250, "OK"}
+          {:error, :forward_count_exceeded} ->
+            {:response, s, 452, "Too many recipients"}
           {:error, :access_denied} ->
-            {:response, :main, 550, "Mailbox not found"}
+            {:response, s, 550, "Mailbox not found"}
         end
 
       {:error, :unknown_param} ->
-        {:response, :main, 555, "RCPT TO parameters not recognized or not implemented"}
+        {:response, s, 555,
+          "RCPT TO parameters not recognized or not implemented"}
 
       {:error, msg} ->
-        {:response, {:rcpt, mail}, 553, msg}
+        {:response, s, 553, msg}
     end
   end
 
@@ -183,7 +188,8 @@ defmodule FunnelSMTP.Server do
     if Enum.empty?(mail.forward) do
       {:response, {:rcpt, mail}, 554, "No valid recipients"}
     else
-      {:response, {:data, mail, trailing}, 354, "Start mail input; end with <CRLF>.<CRLF>"}
+      {:response, {:data, mail, trailing}, 354,
+        "Start mail input; end with <CRLF>.<CRLF>"}
     end
   end
 
@@ -269,12 +275,13 @@ defmodule FunnelSMTP.Server do
   @spec receive_forward_path(map(), Mail.t(), String.t(), map()) ::
           {:ok, Mail.t()}
           | {:error, :access_denied}
+          | {:error, :forward_count_exceeded}
   defp receive_forward_path(config, mail, forward_path, params) do
     is_allowed? = FunnelSMTP.MailScheduler.allow_path?(
       config.mail_scheduler, :rcpt_to, forward_path)
 
     if is_allowed? do
-      {:ok, Mail.add_forward(mail, forward_path, params)}
+      Mail.add_forward(mail, forward_path, params)
     else
       Logger.info("Access denied for RCPT TO:#{inspect forward_path}, " <>
         "mail=#{inspect mail}")

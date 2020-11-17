@@ -42,8 +42,8 @@ defmodule FunnelSMTPClientTest do
 
   test "should send mail", %{client: client, scheduler: scheduler} do
     outgoing = %Mail{
-      reverse: {"i@client.example", %{}},
-      forward: [{"you@server.example", %{}}],
+      reverse: {"allowed@sender", %{}},
+      forward: [{"allowed@rcpt", %{}}],
       data: "Hey!\r\n...are you okay?"
     }
 
@@ -52,8 +52,8 @@ defmodule FunnelSMTPClientTest do
     assert Client.quit(client) == :ok
 
     assert {:mail, mail} = MockScheduler.pop(scheduler)
-    assert mail.reverse == {"i@client.example", %{size: 22}}
-    assert mail.forward == [{"you@server.example", %{}}]
+    assert mail.reverse == {"allowed@sender", %{size: 22}}
+    assert mail.forward == [{"allowed@rcpt", %{}}]
     assert mail.data == outgoing.data
   end
 end

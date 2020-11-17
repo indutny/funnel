@@ -1,6 +1,8 @@
 defmodule FunnelSMTP.Mail do
   use TypedStruct
 
+  @max_forward_count 100
+
   typedstruct do
     field :reverse, {String.t(), FunnelSMTP.reverse_params()}, enforce: true
     field :forward, [{String.t(), FunnelSMTP.forward_params()}], default: []
@@ -23,12 +25,18 @@ defmodule FunnelSMTP.Mail do
   @doc """
   Adds new forward path to the mail.
   """
-  @spec add_forward(t(), String.t(), FunnelSMTP.forward_params()) :: t()
+  @spec add_forward(t(), String.t(), FunnelSMTP.forward_params()) ::
+    {:ok, t()} | {:error, :forward_count_exceeded}
   def add_forward(mail, forward_path, forward_params \\ %{}) do
-    %Mail{
-      mail
-      | forward: [{forward_path, forward_params} | mail.forward]
-    }
+    if length(mail.forward) < @max_forward_count do
+      mail = %Mail{
+        mail
+        | forward: [{forward_path, forward_params} | mail.forward]
+      }
+      {:ok, mail}
+    else
+      {:error, :forward_count_exceeded}
+    end
   end
 
   @doc """

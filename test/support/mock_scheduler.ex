@@ -20,8 +20,28 @@ defmodule FunnelSMTPTest.MockScheduler do
   end
 
   @impl true
-  def allow_path?(_, _, _) do
+  def allow_path?(_, :mail_from, :empty) do
     true
+  end
+
+  def allow_path?(_, :mail_from, "allowed@sender") do
+    true
+  end
+
+  def allow_path?(_, :rcpt_to, :postmaster) do
+    true
+  end
+
+  def allow_path?(_, :rcpt_to, "allowed@rcpt") do
+    true
+  end
+
+  def allow_path?(_, :rcpt_to, "second@rcpt") do
+    true
+  end
+
+  def allow_path?(_, _, _) do
+    false
   end
 
   # GenServer implementation
