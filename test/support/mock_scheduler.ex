@@ -7,16 +7,15 @@ defmodule FunnelSMTPTest.MockScheduler do
     GenServer.start_link(__MODULE__, :ok, opts)
   end
 
+  def pop(server) do
+    GenServer.call(server, :pop)
+  end
+
   # MailScheduler implementation
 
   @impl true
   def schedule(server, mail) do
     GenServer.call(server, {:schedule, mail})
-  end
-
-  @impl true
-  def pop(server) do
-    GenServer.call(server, :pop)
   end
 
   @impl true

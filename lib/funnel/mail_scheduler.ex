@@ -17,11 +17,6 @@ defmodule Funnel.MailScheduler do
   end
 
   @impl true
-  def pop(server) do
-    {:error, :not_implemented}
-  end
-
-  @impl true
   def allow_path?(_, :mail_from, :null) do
     # TODO(indutny): apply extra size limits
     true
