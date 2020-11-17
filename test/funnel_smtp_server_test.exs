@@ -137,7 +137,7 @@ defmodule FunnelSMTPServerTest do
              @ok
            ]
 
-    {:mail, mail} = MockScheduler.pop(scheduler)
+    assert {:ok, mail} = MockScheduler.pop(scheduler)
     assert mail.reverse == {"allowed@sender", %{size: 100}}
 
     assert mail.forward == [

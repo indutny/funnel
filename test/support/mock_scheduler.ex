@@ -60,10 +60,10 @@ defmodule FunnelSMTPTest.MockScheduler do
   def handle_call(:pop, _from, queue) do
     case :queue.out(queue) do
       {{:value, mail}, queue} ->
-        {:reply, {:mail, mail}, queue}
+        {:reply, {:ok, mail}, queue}
 
       {:empty, queue} ->
-        {:reply, :empty, queue}
+        {:reply, {:error, :empty}, queue}
     end
   end
 end

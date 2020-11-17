@@ -13,6 +13,7 @@ defmodule Funnel.Application do
       {Funnel.Repo, []},
       {Task.Supervisor, name: Funnel.ConnectionSupervisor},
       {Funnel.MailScheduler, name: Funnel.MailScheduler},
+      {Registry, keys: :unique, name: Funnel.ClientRegistry},
       {Server, %Server.Config{port: port}}
     ]
 

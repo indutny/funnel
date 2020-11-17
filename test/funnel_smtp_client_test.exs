@@ -51,7 +51,7 @@ defmodule FunnelSMTPClientTest do
     assert Client.send(client, outgoing) == :ok
     assert Client.quit(client) == :ok
 
-    assert {:mail, mail} = MockScheduler.pop(scheduler)
+    assert {:ok, mail} = MockScheduler.pop(scheduler)
     assert mail.reverse == {"allowed@sender", %{size: 22}}
     assert mail.forward == [{"allowed@rcpt", %{}}]
     assert mail.data == outgoing.data

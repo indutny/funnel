@@ -6,7 +6,7 @@ defmodule FunnelSMTP.MailScheduler do
   @type side :: :mail_from | :rcpt_to
 
   @callback schedule(t(), Mail.t()) :: :ok
-  @callback pop(t()) :: Mail.t() | :empty
+  @callback pop(t()) :: {:ok, Mail.t()} | {:error, atom()}
   @callback allow_path?(t(), side(), String.t()) :: boolean()
 
   @spec schedule(impl(), Mail.t()) :: :ok
@@ -14,7 +14,7 @@ defmodule FunnelSMTP.MailScheduler do
     implementation.schedule(server, mail)
   end
 
-  @spec pop(impl()) :: Mail.t() | :empty
+  @spec pop(impl()) :: {:ok, Mail.t()} | {:error, atom()}
   def pop({implementation, server}) do
     implementation.pop(server)
   end

@@ -14,12 +14,11 @@ defmodule Funnel.MailScheduler do
   @impl true
   def schedule(server, mail) do
     Logger.info("New mail #{inspect(mail)}")
-    GenServer.call(server, {:schedule, mail})
   end
 
   @impl true
   def pop(server) do
-    GenServer.call(server, :pop)
+    {:error, :not_implemented}
   end
 
   @impl true
