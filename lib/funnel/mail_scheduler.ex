@@ -23,7 +23,7 @@ defmodule Funnel.MailScheduler do
   end
 
   @impl true
-  def allow_path?(_, :mail_from, :empty) do
+  def allow_path?(_, :mail_from, :null) do
     # TODO(indutny): apply extra size limits
     true
   end

@@ -20,7 +20,7 @@ defmodule FunnelSMTPTest.MockScheduler do
   end
 
   @impl true
-  def allow_path?(_, :mail_from, :empty) do
+  def allow_path?(_, :mail_from, :null) do
     true
   end
 
