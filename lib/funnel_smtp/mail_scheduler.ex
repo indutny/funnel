@@ -1,5 +1,5 @@
-defmodule Funnel.SMTP.MailScheduler do
-  alias Funnel.SMTP.Mail
+defmodule FunnelSMTP.MailScheduler do
+  alias FunnelSMTP.Mail
 
   @type t :: GenServer.server()
   @type impl :: {atom(), t()}

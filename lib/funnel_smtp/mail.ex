@@ -1,18 +1,18 @@
-defmodule Funnel.SMTP.Mail do
+defmodule FunnelSMTP.Mail do
   use TypedStruct
 
   typedstruct do
-    field :reverse, {String.t(), Funnel.SMTP.reverse_params()}, enforce: true
-    field :forward, [{String.t(), Funnel.SMTP.forward_params()}], default: []
+    field :reverse, {String.t(), FunnelSMTP.reverse_params()}, enforce: true
+    field :forward, [{String.t(), FunnelSMTP.forward_params()}], default: []
     field :data, binary(), enforce: true
   end
 
-  alias Funnel.SMTP.Mail
+  alias FunnelSMTP.Mail
 
   @doc """
   Create new empty mail
   """
-  @spec new(String.t(), Funnel.SMTP.reverse_params()) :: t()
+  @spec new(String.t(), FunnelSMTP.reverse_params()) :: t()
   def new(reverse_path, reverse_params \\ %{}, data \\ "") do
     %Mail{
       reverse: {reverse_path, reverse_params},
@@ -23,7 +23,7 @@ defmodule Funnel.SMTP.Mail do
   @doc """
   Adds new forward path to the mail.
   """
-  @spec add_forward(t(), String.t(), Funnel.SMTP.forward_params()) :: t()
+  @spec add_forward(t(), String.t(), FunnelSMTP.forward_params()) :: t()
   def add_forward(mail, forward_path, forward_params \\ %{}) do
     %Mail{
       mail
@@ -52,8 +52,8 @@ defmodule Funnel.SMTP.Mail do
 
   ## Examples
 
-      iex> mail = Funnel.SMTP.Mail.new("a@b.com", %{}, "hello\r\n\r\n")
-      ...>        |> Funnel.SMTP.Mail.trim_trailing_crlf()
+      iex> mail = FunnelSMTP.Mail.new("a@b.com", %{}, "hello\r\n\r\n")
+      ...>        |> FunnelSMTP.Mail.trim_trailing_crlf()
       iex> mail.data
       "hello\r\n"
   """
@@ -73,12 +73,12 @@ defmodule Funnel.SMTP.Mail do
 
   ## Examples
 
-      iex> Funnel.SMTP.Mail.new("a@b.com", %{}, "ohai")
-      ...> |> Funnel.SMTP.Mail.has_8bitdata?()
+      iex> FunnelSMTP.Mail.new("a@b.com", %{}, "ohai")
+      ...> |> FunnelSMTP.Mail.has_8bitdata?()
       false
 
-      iex> Funnel.SMTP.Mail.new("a@b.com", %{}, "こんにちは")
-      ...> |> Funnel.SMTP.Mail.has_8bitdata?()
+      iex> FunnelSMTP.Mail.new("a@b.com", %{}, "こんにちは")
+      ...> |> FunnelSMTP.Mail.has_8bitdata?()
       true
   """
   def has_8bitdata?(mail) do

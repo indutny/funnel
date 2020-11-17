@@ -1,0 +1,2 @@
+defmodule Funnel do
+end

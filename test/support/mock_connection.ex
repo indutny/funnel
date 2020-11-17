@@ -1,9 +1,9 @@
 defmodule FunnelSMTPTest.MockConnection do
   use GenServer
 
-  @behaviour Funnel.SMTP.Connection
+  @behaviour FunnelSMTP.Connection
 
-  alias Funnel.SMTP.Server
+  alias FunnelSMTP.Server
 
   @spec start_link(Server.t(), GenServer.options()) :: GenServer.on_start()
   def start_link(remote, opts \\ []) do

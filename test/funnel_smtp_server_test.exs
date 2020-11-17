@@ -1,8 +1,8 @@
 defmodule FunnelSMTPServerTest do
   use ExUnit.Case, async: true
-  doctest Funnel.SMTP.Server
+  doctest FunnelSMTP.Server
 
-  alias Funnel.SMTP.Server
+  alias FunnelSMTP.Server
   alias FunnelSMTPTest.MockScheduler
 
   @moduletag capture_log: true

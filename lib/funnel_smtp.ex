@@ -1,4 +1,4 @@
-defmodule Funnel.SMTP do
+defmodule FunnelSMTP do
   @moduledoc """
   Abstract SMTP protocol implementation/tools.
   """
@@ -39,21 +39,21 @@ defmodule Funnel.SMTP do
 
   ## Examples
 
-      iex> Funnel.SMTP.parse_command("EHLO domain\r\n")
+      iex> FunnelSMTP.parse_command("EHLO domain\r\n")
       {:ehlo, "domain", :crlf}
 
-      iex> Funnel.SMTP.parse_command("MAIL FROM:<a@b.com> A=1 B=2\r\n")
+      iex> FunnelSMTP.parse_command("MAIL FROM:<a@b.com> A=1 B=2\r\n")
       {:mail_from, "<a@b.com> A=1 B=2", :crlf}
 
-      iex> Funnel.SMTP.parse_command("RCPT TO:<a@b.com> A=1 B=2\r\n")
+      iex> FunnelSMTP.parse_command("RCPT TO:<a@b.com> A=1 B=2\r\n")
       {:rcpt_to, "<a@b.com> A=1 B=2", :crlf}
 
-      iex> Funnel.SMTP.parse_command("DATA\r\n")
+      iex> FunnelSMTP.parse_command("DATA\r\n")
       {:data, "", :crlf}
 
   NOTE that for commands ending with "\n" it returns different trailing string
 
-      iex> Funnel.SMTP.parse_command("DATA\n")
+      iex> FunnelSMTP.parse_command("DATA\n")
       {:data, "", :lf}
   """
   @spec parse_command(String.t()) :: command() | {:unknown, String.t()}
@@ -85,16 +85,16 @@ defmodule Funnel.SMTP do
 
   ## Examples
 
-      iex> Funnel.SMTP.parse_response("250\r\n")
+      iex> FunnelSMTP.parse_response("250\r\n")
       {:ok, {250, "", :last}}
 
-      iex> Funnel.SMTP.parse_response("250 OK\r\n")
+      iex> FunnelSMTP.parse_response("250 OK\r\n")
       {:ok, {250, "OK", :last}}
 
-      iex> Funnel.SMTP.parse_response("250-8BITMIME\r\n")
+      iex> FunnelSMTP.parse_response("250-8BITMIME\r\n")
       {:ok, {250, "8BITMIME", :not_last}}
 
-      iex> Funnel.SMTP.parse_response("not response\r\n")
+      iex> FunnelSMTP.parse_response("not response\r\n")
       {:error, "Invalid response line"}
   """
   @spec parse_response(String.t()) :: {:ok, response()} | {:error, String.t()}
@@ -119,25 +119,25 @@ defmodule Funnel.SMTP do
 
   ## Examples
 
-      iex> Funnel.SMTP.parse_extension("8BITMIME")
+      iex> FunnelSMTP.parse_extension("8BITMIME")
       :mime8bit
 
-      iex> Funnel.SMTP.parse_extension("SIZE")
+      iex> FunnelSMTP.parse_extension("SIZE")
       {:size, :unspecified}
 
-      iex> Funnel.SMTP.parse_extension("SIZE 100")
+      iex> FunnelSMTP.parse_extension("SIZE 100")
       {:size, 100}
 
-      iex> Funnel.SMTP.parse_extension("SIZE 0")
+      iex> FunnelSMTP.parse_extension("SIZE 0")
       {:size, :unlimited}
 
-      iex> Funnel.SMTP.parse_extension("STARTTLS")
+      iex> FunnelSMTP.parse_extension("STARTTLS")
       :starttls
 
-      iex> Funnel.SMTP.parse_extension("BOO")
+      iex> FunnelSMTP.parse_extension("BOO")
       {:unknown, "BOO"}
 
-      iex> Funnel.SMTP.parse_extension("SIZE -100")
+      iex> FunnelSMTP.parse_extension("SIZE -100")
       {:error, "Invalid parameter of SIZE extension"}
   """
   @spec parse_extension(String.t()) :: extension() | {:error, String.t()}
@@ -184,10 +184,10 @@ defmodule Funnel.SMTP do
 
   ## Examples
 
-      iex> Funnel.SMTP.parse_mail_and_params("<a@b.com> SIZE=10", :mail)
+      iex> FunnelSMTP.parse_mail_and_params("<a@b.com> SIZE=10", :mail)
       {:ok, "a@b.com", %{size: 10}}
 
-      iex> Funnel.SMTP.parse_mail_and_params("not an email", :rcpt)
+      iex> FunnelSMTP.parse_mail_and_params("not an email", :rcpt)
       {:error, "Invalid mail path"}
   """
   def parse_mail_and_params(str, side) do
@@ -197,8 +197,8 @@ defmodule Funnel.SMTP do
         [path, params] -> {path, params}
       end
 
-    with {:ok, mailbox} <- Funnel.SMTP.parse_mail_path(path, side),
-         {:ok, params} <- Funnel.SMTP.parse_mail_params(params, side) do
+    with {:ok, mailbox} <- FunnelSMTP.parse_mail_path(path, side),
+         {:ok, params} <- FunnelSMTP.parse_mail_params(params, side) do
       {:ok, mailbox, params}
     end
   end
@@ -210,36 +210,36 @@ defmodule Funnel.SMTP do
 
   Usual email addresses:
 
-      iex> Funnel.SMTP.parse_mail_path("<hello@world.com>", :mail)
+      iex> FunnelSMTP.parse_mail_path("<hello@world.com>", :mail)
       {:ok, "hello@world.com"}
 
   Deprecated but supported source path part of the address:
 
-      iex> Funnel.SMTP.parse_mail_path("<@b, @c:hello@world.com>", :mail)
+      iex> FunnelSMTP.parse_mail_path("<@b, @c:hello@world.com>", :mail)
       {:ok, "hello@world.com"}
 
-      iex> Funnel.SMTP.parse_mail_path("<why spaces@gmail.com>", :mail)
+      iex> FunnelSMTP.parse_mail_path("<why spaces@gmail.com>", :mail)
       {:error, "Invalid mail path"}
 
-      iex> Funnel.SMTP.parse_mail_path("<not an email>", :mail)
+      iex> FunnelSMTP.parse_mail_path("<not an email>", :mail)
       {:error, "Invalid mail path"}
 
   Empty email addresses are used to notify sender of delivery failure:
 
-      iex> Funnel.SMTP.parse_mail_path("<>", :mail)
+      iex> FunnelSMTP.parse_mail_path("<>", :mail)
       {:ok, :null}
 
   but can't be a recipient of the email:
 
-      iex> Funnel.SMTP.parse_mail_path("<>", :rcpt)
+      iex> FunnelSMTP.parse_mail_path("<>", :rcpt)
       {:error, "Forward path can't be empty"}
 
   Postmaster is of course a special mailbox that we must support:
 
-      iex> Funnel.SMTP.parse_mail_path("<Postmaster>", :rcpt)
+      iex> FunnelSMTP.parse_mail_path("<Postmaster>", :rcpt)
       {:ok, :postmaster}
 
-      iex> Funnel.SMTP.parse_mail_path("<Postmaster>", :mail)
+      iex> FunnelSMTP.parse_mail_path("<Postmaster>", :mail)
       {:error, "Postmaster can't be the reverse-path"}
   """
   @spec parse_mail_path(String.t(), :mail | :rcpt) ::
@@ -278,33 +278,33 @@ defmodule Funnel.SMTP do
 
   ## Examples
 
-      iex> Funnel.SMTP.parse_mail_params("", :mail)
+      iex> FunnelSMTP.parse_mail_params("", :mail)
       {:ok, %{}}
 
   SIZE extension parameter would be automatically parsed from `mail-parameters`
 
-      iex> Funnel.SMTP.parse_mail_params("SIZE=123", :mail)
+      iex> FunnelSMTP.parse_mail_params("SIZE=123", :mail)
       {:ok, %{:size => 123}}
 
-      iex> Funnel.SMTP.parse_mail_params("SIZE=a", :mail)
+      iex> FunnelSMTP.parse_mail_params("SIZE=a", :mail)
       {:error, "Invalid value of SIZE parameter"}
 
   but not for `rcpt-parameters`:
 
-      iex> Funnel.SMTP.parse_mail_params("SIZE=a", :rcpt)
+      iex> FunnelSMTP.parse_mail_params("SIZE=a", :rcpt)
       {:error, :unknown_param}
 
   and duplicate values wouldn't be allowed:
 
-      iex> Funnel.SMTP.parse_mail_params("SIZE=2 SIZE=3", :mail)
+      iex> FunnelSMTP.parse_mail_params("SIZE=2 SIZE=3", :mail)
       {:error, "Duplicate parameter"}
 
   just as unknown or incorrect parameters:
 
-      iex> Funnel.SMTP.parse_mail_params("A=42", :mail)
+      iex> FunnelSMTP.parse_mail_params("A=42", :mail)
       {:error, :unknown_param}
 
-      iex> Funnel.SMTP.parse_mail_params("B", :mail)
+      iex> FunnelSMTP.parse_mail_params("B", :mail)
       {:error, "Invalid mail parameter"}
   """
   @spec parse_mail_params(String.t(), :mail | :rcpt) ::
@@ -331,13 +331,13 @@ defmodule Funnel.SMTP do
 
   ## Examples
 
-      iex> Funnel.SMTP.parse_xtext("test")
+      iex> FunnelSMTP.parse_xtext("test")
       {:ok, "test"}
 
-      iex> Funnel.SMTP.parse_xtext("A+2BB")
+      iex> FunnelSMTP.parse_xtext("A+2BB")
       {:ok, "A+B"}
 
-      iex> Funnel.SMTP.parse_xtext("=")
+      iex> FunnelSMTP.parse_xtext("=")
       {:error, "Invalid xtext"}
   """
   @spec parse_xtext(String.t()) :: {:ok, String.t()} | {:error, String.t()}

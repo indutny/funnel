@@ -7,6 +7,6 @@ defmodule Funnel.AllowList do
 
     Funnel.Repo.exists?(
       Funnel.AllowList.Entry
-      |> where([p], p.user == ^user or p.domain == ^domain))
+      |> where([p], (p.user == ^user or p.user == "*") and p.domain == ^domain))
   end
 end

@@ -1,10 +1,10 @@
 defmodule FunnelSMTPClientTest do
   use ExUnit.Case, async: true
-  doctest Funnel.SMTP.Client
+  doctest FunnelSMTP.Client
 
-  alias Funnel.SMTP.Client
-  alias Funnel.SMTP.Server
-  alias Funnel.SMTP.Mail
+  alias FunnelSMTP.Client
+  alias FunnelSMTP.Server
+  alias FunnelSMTP.Mail
 
   alias FunnelSMTPTest.MockScheduler
   alias FunnelSMTPTest.MockConnection

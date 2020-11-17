@@ -16,7 +16,7 @@ defmodule Funnel.Server do
     field :max_line_size, non_neg_integer(), default: 512
   end
 
-  alias Funnel.SMTP.Server, as: Connection
+  alias FunnelSMTP.Server, as: Connection
 
   @moduledoc """
   Server implementation.

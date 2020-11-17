@@ -1,5 +1,5 @@
 defmodule FunnelSMTPMailTest do
   use ExUnit.Case, async: true
 
-  doctest Funnel.SMTP.Mail
+  doctest FunnelSMTP.Mail
 end
