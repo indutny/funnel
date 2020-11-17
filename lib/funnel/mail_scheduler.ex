@@ -1,5 +1,7 @@
 defmodule Funnel.MailScheduler do
   use GenServer
+  require Logger
+
   @behaviour FunnelSMTP.MailScheduler
 
   @spec start_link(GenServer.options()) :: GenServer.on_start()
@@ -11,7 +13,7 @@ defmodule Funnel.MailScheduler do
 
   @impl true
   def schedule(server, mail) do
-    IO.inspect(mail)
+    Logger.info("New mail #{inspect mail}")
     GenServer.call(server, {:schedule, mail})
   end
 
@@ -21,15 +23,22 @@ defmodule Funnel.MailScheduler do
   end
 
   @impl true
-  def allow_path?(_, side, email) do
-    case side do
-      :mail_from ->
-        Funnel.AllowList.contains?(email)
+  def allow_path?(_, :mail_from, :empty) do
+    # TODO(indutny): apply extra size limits
+    true
+  end
 
-      :rcpt_to ->
-        # TODO(indutny): implement me
-        true
-    end
+  def allow_path?(_, :mail_from, email) do
+    Funnel.AllowList.contains?(email)
+  end
+
+  def allow_path?(_, :rcpt_to, :postmaster) do
+    # TODO(indutny): apply extra size limits
+    true
+  end
+
+  def allow_path?(_, :rcpt_to, email) do
+    Funnel.ForwardList.contains?(email)
   end
 
   # GenServer implementation

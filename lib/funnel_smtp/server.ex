@@ -164,8 +164,12 @@ defmodule FunnelSMTP.Server do
   defp handle_line(config, {:rcpt, mail}, {:rcpt_to, forward_path, _}) do
     case FunnelSMTP.parse_mail_and_params(forward_path, :rcpt) do
       {:ok, forward_path, params} ->
-        {:ok, new_mail} = receive_forward_path(config, mail, forward_path, params)
-        {:response, {:rcpt, new_mail}, 250, "OK"}
+        case receive_forward_path(config, mail, forward_path, params) do
+          {:ok, new_mail} ->
+            {:response, {:rcpt, new_mail}, 250, "OK"}
+          {:error, :access_denied} ->
+            {:response, :main, 550, "Mailbox not found"}
+        end
 
       {:error, :unknown_param} ->
         {:response, :main, 555, "RCPT TO parameters not recognized or not implemented"}
@@ -249,9 +253,11 @@ defmodule FunnelSMTP.Server do
 
     cond do
       not is_allowed? ->
+        Logger.info("Access denied to MAIL FROM:#{inspect reverse_path}")
         {:error, :access_denied}
 
       Map.get(params, :size, config.max_mail_size) > config.max_mail_size ->
+        Logger.info("Max size exceeded MAIL FROM:#{inspect reverse_path}")
         {:error, :max_size_exceeded}
 
       true ->
@@ -262,12 +268,17 @@ defmodule FunnelSMTP.Server do
 
   @spec receive_forward_path(map(), Mail.t(), String.t(), map()) ::
           {:ok, Mail.t()}
-          | {:error, atom()}
-  defp receive_forward_path(_, mail, forward_path, params) do
-    # TODO(indutny): check that `forward_path` is in allowlist
-    # 550 - if no such user
-    # should also disallow outgoing email (different domain) unless
-    # authorized.
-    {:ok, Mail.add_forward(mail, forward_path, params)}
+          | {:error, :access_denied}
+  defp receive_forward_path(config, mail, forward_path, params) do
+    is_allowed? = FunnelSMTP.MailScheduler.allow_path?(
+      config.mail_scheduler, :rcpt_to, forward_path)
+
+    if is_allowed? do
+      {:ok, Mail.add_forward(mail, forward_path, params)}
+    else
+      Logger.info("Access denied for RCPT TO:#{inspect forward_path}, " <>
+        "mail=#{inspect mail}")
+      {:error, :access_denied}
+    end
   end
 end

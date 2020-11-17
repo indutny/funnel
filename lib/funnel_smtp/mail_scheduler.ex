@@ -19,7 +19,7 @@ defmodule FunnelSMTP.MailScheduler do
     implementation.pop(server)
   end
 
-  @spec allow_path?(impl(), side(), String.t()) :: boolean()
+  @spec allow_path?(impl(), side(), FunnelSMTP.mail_path()) :: boolean()
   def allow_path?({implementation, server}, side, email) do
     implementation.allow_path?(server, side, email)
   end
