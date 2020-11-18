@@ -21,9 +21,9 @@ defmodule Funnel.Client do
   Client implementation.
   """
 
-  @spec start_link(Config.t(), [term()]) :: {:ok, pid()}
-  def start_link(config, _opts \\ []) do
-    Task.start_link(Funnel.Client, :connect, [config])
+  @spec start(Config.t(), [term()]) :: {:ok, pid()}
+  def start(config, _opts \\ []) do
+    Task.start(Funnel.Client, :connect, [config])
   end
 
   @spec connect(Config.t()) :: nil

@@ -9,14 +9,19 @@ defmodule Funnel.ClientPool do
   @spec get(Registry.registry(), String.t()) :: pid()
   def get(registry, domain) do
     case Registry.lookup(registry, domain) do
-      [client] ->
+      [{client, _}] ->
         client
+
       _ ->
         name = {:via, Registry, {registry, domain}}
 
-        {:ok, pid} = Funnel.Client.start_link(%Funnel.Client.Config{
-          remote_domain: domain,
-        }, name: name)
+        {:ok, pid} =
+          Funnel.Client.start(
+            %Funnel.Client.Config{
+              remote_domain: domain
+            },
+            name: name
+          )
 
         pid
     end
