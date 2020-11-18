@@ -3,7 +3,9 @@ defmodule Funnel.Client do
   use TypedStruct
 
   typedstruct module: Config do
+    field :remote_domain, :inet.hostname(), ensure: true
     field :local_domain, :inet.hostname(), default: "funnel.localhost"
+
     # 5 minutes
     field :read_timeout, timeout(), default: 5 * 60 * 1000
     field :port, non_neg_integer(), default: 0
