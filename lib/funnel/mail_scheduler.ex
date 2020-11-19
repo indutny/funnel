@@ -12,8 +12,9 @@ defmodule Funnel.MailScheduler do
   # MailScheduler implementation
 
   @impl true
-  def schedule(server, mail) do
+  def schedule(_server, mail) do
     Logger.info("New mail #{inspect(mail)}")
+    # TODO(indutny): Implement me
   end
 
   @impl true

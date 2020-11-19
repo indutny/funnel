@@ -9,7 +9,7 @@ defmodule Funnel.Server do
     field :max_mail_size, non_neg_integer(), default: 30 * 1024 * 1024
     # 5 minutes
     field :read_timeout, timeout(), default: 5 * 60 * 1000
-    field :port, non_neg_integer(), default: 0
+    field :port, :inet.port_number(), default: 0
 
     # TODO(indutny): line size limit leads to unrecoverable :emsgsize error.
     # Needs to be able to send the 500 response without closing the socket.

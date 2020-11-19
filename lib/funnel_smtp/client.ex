@@ -5,7 +5,6 @@ defmodule FunnelSMTP.Client do
 
   use GenServer
 
-  use TypedStruct
   require Logger
 
   alias FunnelSMTP.Connection
@@ -14,6 +13,8 @@ defmodule FunnelSMTP.Client do
   @type t :: GenServer.server()
 
   defmodule Config do
+    use TypedStruct
+
     typedstruct do
       field :local_domain, :inet.hostname(), enforce: true
       field :extensions, [FunnelSMTP.extension()], default: []

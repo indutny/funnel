@@ -1,5 +1,5 @@
 defmodule FunnelSMTP.Connection do
-  @type t :: GenServer.server()
+  @type t :: term()
   @type impl :: {atom(), t()}
 
   @callback send(t(), String.t()) :: :ok | {:error, String.t()}
