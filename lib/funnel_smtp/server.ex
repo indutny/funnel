@@ -10,8 +10,9 @@ defmodule FunnelSMTP.Server do
   require Logger
 
   typedstruct module: Config, enforce: true do
-    field :local_domain, :inet.hostname()
-    field :remote_domain, :inet.hostname()
+    @type domain :: :inet.hostname() | :inet.socket_address()
+    field :local_domain, domain()
+    field :remote_domain, domain()
     field :max_anonymous_mail_size, non_neg_integer(), default: 1024
     field :max_mail_size, non_neg_integer()
     field :mail_scheduler, {atom(), FunnelSMTP.MailScheduler.t()}
