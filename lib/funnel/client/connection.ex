@@ -15,24 +15,58 @@ defmodule Funnel.Client.Connection do
 
   @impl GenServer
   def init(config) do
-    socket = nil
-    {:ok, {config, socket}}
+    opts = [
+      :binary,
+      packet: :line,
+      packet_size: config.max_line_size,
+      active: false
+    ]
+
+    with {:ok, socket} <-
+           :gen_tcp.connect(
+             config.host,
+             config.port,
+             opts,
+             config.connect_timeout
+           ) do
+      {:ok, {config, socket}}
+    end
   end
 
   # FunnelSMTP.Connection implementation
 
   @impl FunnelSMTP.Connection
-  def send(_server, _line) do
-    {:error, "Not implemented"}
+  def send(server, line) do
+    GenServer.call(server, {:send, line})
   end
 
   @impl FunnelSMTP.Connection
-  def recv_line(_server) do
-    {:error, "Not implemented"}
+  def recv_line(server) do
+    GenServer.call(server, :recv_line)
   end
 
   @impl FunnelSMTP.Connection
-  def close(_server) do
-    :ok
+  def close(server) do
+    GenServer.call(server, :close)
+  end
+
+  # GenServer implementation
+
+  @impl GenServer
+  def handle_call({:send, line}, _from, s = {_, socket}) do
+    reply = :gen_tcp.send(socket, line)
+    {:reply, reply, s}
+  end
+
+  @impl GenServer
+  def handle_call(:recv_line, _from, s = {config, socket}) do
+    reply = :gen_tcp.recv(socket, 0, config.read_timeout)
+    {:reply, reply, s}
+  end
+
+  @impl GenServer
+  def handle_call(:close, _from, s = {_config, socket}) do
+    reply = :gen_tcp.close(socket)
+    {:reply, reply, s}
   end
 end

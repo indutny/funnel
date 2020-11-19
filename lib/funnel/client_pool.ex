@@ -1,6 +1,8 @@
 defmodule Funnel.ClientPool do
   use Task, restart: :permanent
 
+  alias Funnel.Client
+
   @spec start_link([Registry.start_option()]) :: {:ok, pid()} | {:error, term()}
   def start_link(opts \\ []) do
     Registry.start_link([keys: :unique] ++ opts)
@@ -15,11 +17,10 @@ defmodule Funnel.ClientPool do
       _ ->
         name = {:via, Registry, {registry, domain}}
 
+        # TODO(indutny): supply port
         {:ok, pid} =
-          Funnel.Client.start(
-            %Funnel.Client.Config{
-              remote_domain: domain
-            },
+          Client.start(
+            %Client.Config{host: domain},
             name: name
           )
 

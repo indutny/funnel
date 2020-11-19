@@ -22,14 +22,17 @@ defmodule Funnel.MailScheduler do
     true
   end
 
+  @impl true
   def allow_path?(_, :mail_from, email) do
     Funnel.AllowList.contains?(email)
   end
 
+  @impl true
   def allow_path?(_, :rcpt_to, :postmaster) do
     true
   end
 
+  @impl true
   def allow_path?(_, :rcpt_to, email) do
     Funnel.ForwardList.contains?(email)
   end
