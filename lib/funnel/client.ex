@@ -3,10 +3,12 @@ defmodule Funnel.Client do
   use TypedStruct
 
   alias FunnelSMTP.Mail
+  alias Funnel.Client.Connection
 
   @type t :: GenServer.server()
 
   typedstruct module: Config do
+    # TODO(indutny): use String
     @type domain :: :inet.hostname() | :inet.socket_address()
 
     field :host, domain(), ensure: true
@@ -17,7 +19,7 @@ defmodule Funnel.Client do
     field :read_timeout, timeout(), default: 5 * 60 * 1000
 
     # 1 minute
-    field :connect_timoeut, timeout(), default: 60 * 1000
+    field :connect_timeout, timeout(), default: 60 * 1000
 
     # TODO(indutny): line size limit leads to unrecoverable :emsgsize error.
     # Needs to be able to send the 500 response without closing the socket.
@@ -30,39 +32,51 @@ defmodule Funnel.Client do
   Client implementation.
   """
 
-  @spec start_link(Config.t(), [term()]) :: {:ok, pid()}
+  @spec start_link(Config.t(), [term()]) :: GenServer.on_start()
   def start_link(config, opts \\ []) do
     GenServer.start_link(__MODULE__, config, opts)
   end
 
-  @spec start(Config.t(), [term()]) :: {:ok, pid()}
+  @spec start(Config.t(), [term()]) :: GenServer.on_start()
   def start(config, opts \\ []) do
     GenServer.start(__MODULE__, config, opts)
   end
 
-  @spec send(t(), Mail.t()) :: :ok | {:error, String.t()}
-  def send(client, mail) do
-    GenServer.call(client, {:send, mail})
+  @spec connect(t()) :: :ok | {:error, term()}
+  def connect(client) do
+    GenServer.call(client, :connect, :infinity)
+  end
+
+  @spec send(t(), Mail.t(), timeout()) :: :ok | {:error, term()}
+  def send(client, mail, timeout \\ 5000) do
+    GenServer.call(client, {:send, mail}, timeout)
   end
 
   # GenServer implementation
 
   @impl true
   def init(config) do
+    {:ok, {:not_connected, config}}
+  end
+
+  @impl true
+  def handle_call(:connect, _from, {:not_connected, config}) do
     smtp_config = %SMTPClient.Config{
       local_domain: config.local_domain
     }
 
-    {:ok, conn} = Funnel.Client.Connection.start_link(config)
+    {:ok, conn} = Connection.connect(config)
     conn = {Funnel.Client.Connection, conn}
 
     {:ok, smtp} = SMTPClient.start_link(smtp_config, conn)
 
-    {:ok, {config, smtp}}
+    :ok = SMTPClient.handshake(smtp)
+
+    {:reply, :ok, {:connected, config, smtp}}
   end
 
   @impl true
-  def handle_call({:send, mail}, _from, s = {_, smtp}) do
+  def handle_call({:send, mail}, _from, s = {:connected, _, smtp}) do
     {:reply, SMTPClient.send(smtp, mail), s}
   end
 end

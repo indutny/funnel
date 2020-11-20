@@ -1,20 +1,13 @@
 defmodule Funnel.Client.Connection do
-  use GenServer
   use TypedStruct
 
   @type config() :: Funnel.Client.Config
+  @type t() :: {config(), :gen_tcp.socket()}
 
   @behaviour FunnelSMTP.Connection
 
-  @spec start_link(config(), GenServer.options()) :: GenServer.on_start()
-  def start_link(config, opts \\ []) do
-    GenServer.start_link(__MODULE__, config, opts)
-  end
-
-  # GenServer implementation
-
-  @impl GenServer
-  def init(config) do
+  @spec connect(config()) :: {:ok, t()} | {:error, term()}
+  def connect(config) do
     opts = [
       :binary,
       packet: :line,
@@ -36,37 +29,17 @@ defmodule Funnel.Client.Connection do
   # FunnelSMTP.Connection implementation
 
   @impl FunnelSMTP.Connection
-  def send(server, line) do
-    GenServer.call(server, {:send, line})
+  def send({_, socket}, line) do
+    :gen_tcp.send(socket, line)
   end
 
   @impl FunnelSMTP.Connection
-  def recv_line(server) do
-    GenServer.call(server, :recv_line)
+  def recv_line({config, socket}) do
+    :gen_tcp.recv(socket, 0, config.read_timeout)
   end
 
   @impl FunnelSMTP.Connection
-  def close(server) do
-    GenServer.call(server, :close)
-  end
-
-  # GenServer implementation
-
-  @impl GenServer
-  def handle_call({:send, line}, _from, s = {_, socket}) do
-    reply = :gen_tcp.send(socket, line)
-    {:reply, reply, s}
-  end
-
-  @impl GenServer
-  def handle_call(:recv_line, _from, s = {config, socket}) do
-    reply = :gen_tcp.recv(socket, 0, config.read_timeout)
-    {:reply, reply, s}
-  end
-
-  @impl GenServer
-  def handle_call(:close, _from, s = {_config, socket}) do
-    reply = :gen_tcp.close(socket)
-    {:reply, reply, s}
+  def close({_, socket}) do
+    :gen_tcp.close(socket)
   end
 end

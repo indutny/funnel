@@ -57,7 +57,7 @@ defmodule Funnel.Server do
     accept(config, socket)
   end
 
-  @spec listen(Config.t(), :inet.socket()) :: nil
+  @spec accept(Config.t(), :inet.socket()) :: nil
   defp accept(config, socket) do
     # TODO(indutny): rate-limiting
     {:ok, remote} = :gen_tcp.accept(socket)
