@@ -36,6 +36,8 @@ defmodule FunnelSMTP do
     ~r/^HELP(\s|$)/i => :help
   }
 
+  @path_re FunnelSMTP.Address.compile()
+
   @doc ~S"""
   Parses the command sent by client.
 
@@ -218,7 +220,7 @@ defmodule FunnelSMTP do
 
   Deprecated but supported source path part of the address:
 
-      iex> FunnelSMTP.parse_mail_path("<@b, @c:hello@world.com>", :mail)
+      iex> FunnelSMTP.parse_mail_path("<@b,@c:hello@world.com>", :mail)
       {:ok, "hello@world.com"}
 
       iex> FunnelSMTP.parse_mail_path("<why spaces@gmail.com>", :mail)
@@ -226,6 +228,9 @@ defmodule FunnelSMTP do
 
       iex> FunnelSMTP.parse_mail_path("<not an email>", :mail)
       {:error, "Invalid mail path"}
+
+      iex> FunnelSMTP.parse_mail_path("<\"quoted\"@mail.com>", :mail)
+      {:error, "Invalid mail path. Quoted strings are not supported"}
 
   Empty email addresses are used to notify sender of delivery failure:
 
@@ -249,7 +254,7 @@ defmodule FunnelSMTP do
           {:ok, mail_path()} | {:error, String.t()}
   def parse_mail_path(path, side) do
     cond do
-      path =~ ~r/^<postmaster(@.*)?>$/i ->
+      path =~ ~r/^<postmaster>$/i ->
         case side do
           :mail -> {:error, "Postmaster can't be the reverse-path"}
           :rcpt -> {:ok, :postmaster}
@@ -265,11 +270,14 @@ defmodule FunnelSMTP do
         end
 
       true ->
-        case Regex.run(~r/^<(.*:)?([^@\s:]+@[^@\s:]+)>$/, path) do
+        case Regex.named_captures(@path_re, path) do
           nil ->
             {:error, "Invalid mail path"}
 
-          [_, _, mailbox] ->
+          %{"quoted_string" => qs} when qs != "" ->
+            {:error, "Invalid mail path. Quoted strings are not supported"}
+
+          %{"mailbox" => mailbox} ->
             {:ok, mailbox}
         end
     end
