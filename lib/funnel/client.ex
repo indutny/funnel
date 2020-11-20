@@ -62,6 +62,7 @@ defmodule Funnel.Client do
       local_domain: config.local_domain
     }
 
+    # TODO(indutny): connect to SSL port first and only then to default one.
     {:ok, conn} = Connection.connect(config)
     conn = {Funnel.Client.Connection, conn}
 
