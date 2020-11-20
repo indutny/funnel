@@ -89,7 +89,7 @@ defmodule Funnel.Server do
     {:ok, conn} =
       SMTPServer.start_link(%SMTPServer.Config{
         local_domain: config.local_domain,
-        remote_domain: remote_domain,
+        remote_domain: List.to_string(remote_domain),
         max_mail_size: config.max_mail_size,
         mail_scheduler: {Funnel.MailScheduler, Funnel.MailScheduler}
       })
