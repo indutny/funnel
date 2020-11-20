@@ -1,7 +1,8 @@
 defmodule Funnel.ForwardList do
   import Ecto.Query
 
-  @spec map(FunnelSMTP.forward_path()) :: FunnelSMTP.forward_path()
+  @spec map(FunnelSMTP.forward_path()) ::
+          {:ok, FunnelSMTP.forward_path()} | {:error, :not_found}
   def map(:postmaster) do
     {:ok, :postmaster}
   end

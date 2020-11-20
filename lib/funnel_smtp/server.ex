@@ -9,16 +9,17 @@ defmodule FunnelSMTP.Server do
 
   require Logger
 
+  alias FunnelSMTP.Mail
+  alias FunnelSMTP.MailScheduler
+  alias FunnelSMTP.Server.Config
+
   typedstruct module: Config, enforce: true do
     field :local_domain, String.t()
     field :remote_domain, String.t()
     field :max_anonymous_mail_size, non_neg_integer(), default: 1024
     field :max_mail_size, non_neg_integer()
-    field :mail_scheduler, {atom(), FunnelSMTP.MailScheduler.t()}
+    field :mail_scheduler, MailScheduler.impl()
   end
-
-  alias FunnelSMTP.Mail
-  alias FunnelSMTP.Server.Config
 
   @type t :: GenServer.server()
 
@@ -211,7 +212,7 @@ defmodule FunnelSMTP.Server do
       Logger.info("Got new mail")
 
       mail = Mail.trim_trailing_crlf(mail)
-      :ok = FunnelSMTP.MailScheduler.schedule(config.mail_scheduler, mail)
+      :ok = MailScheduler.schedule(config.mail_scheduler, mail)
 
       {:response, :main, 250, "OK"}
     end
@@ -265,7 +266,7 @@ defmodule FunnelSMTP.Server do
           | {:error, :access_denied | :max_size_exceeded}
   defp receive_reverse_path(config, reverse_path, params) do
     is_allowed? =
-      FunnelSMTP.MailScheduler.allow_reverse_path?(
+      MailScheduler.allow_reverse_path?(
         config.mail_scheduler,
         reverse_path
       )
@@ -290,7 +291,7 @@ defmodule FunnelSMTP.Server do
           | {:error, :access_denied | :forward_count_exceeded | term()}
   defp receive_forward_path(config, mail, forward_path, params) do
     maybe_forward_path =
-      FunnelSMTP.MailScheduler.map_forward_path(
+      MailScheduler.map_forward_path(
         config.mail_scheduler,
         forward_path
       )
