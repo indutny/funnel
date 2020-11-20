@@ -8,12 +8,9 @@ defmodule Funnel.Client do
   @type t :: GenServer.server()
 
   typedstruct module: Config do
-    # TODO(indutny): use String
-    @type domain :: :inet.hostname() | :inet.socket_address()
-
-    field :host, domain(), ensure: true
+    field :host, String.t(), ensure: true
     field :port, :inet.port_number(), default: 25
-    field :local_domain, domain(), default: "funnel.localhost"
+    field :local_domain, String.t(), default: "funnel.localhost"
 
     # 5 minutes
     field :read_timeout, timeout(), default: 5 * 60 * 1000

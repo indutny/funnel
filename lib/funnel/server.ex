@@ -5,9 +5,7 @@ defmodule Funnel.Server do
   require Logger
 
   typedstruct module: Config do
-    @type domain :: :inet.hostname() | :inet.socket_address()
-
-    field :local_domain, domain(), default: "funnel.localhost"
+    field :local_domain, String.t(), default: "funnel.localhost"
     field :max_mail_size, non_neg_integer(), default: 30 * 1024 * 1024
     # 5 minutes
     field :read_timeout, timeout(), default: 5 * 60 * 1000

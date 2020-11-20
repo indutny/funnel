@@ -16,9 +16,7 @@ defmodule FunnelSMTP.Client do
     use TypedStruct
 
     typedstruct do
-      @type domain :: :inet.hostname() | :inet.socket_address()
-
-      field :local_domain, domain(), enforce: true
+      field :local_domain, String.t(), enforce: true
       field :extensions, [FunnelSMTP.extension()], default: []
     end
 

@@ -19,7 +19,7 @@ defmodule FunnelClientTest do
       start_supervised!(
         {Client,
          %Client.Config{
-           host: 'localhost',
+           host: "localhost",
            port: MockServer.get_port()
          }}
       )

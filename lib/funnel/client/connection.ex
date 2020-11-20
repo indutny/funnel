@@ -17,7 +17,7 @@ defmodule Funnel.Client.Connection do
 
     with {:ok, socket} <-
            :gen_tcp.connect(
-             config.host,
+             String.to_charlist(config.host),
              config.port,
              opts,
              config.connect_timeout
