@@ -248,7 +248,6 @@ defmodule FunnelSMTP do
   @spec parse_mail_path(String.t(), :mail | :rcpt) ::
           {:ok, mail_path()} | {:error, String.t()}
   def parse_mail_path(path, side) do
-    # TODO(indutny): parse it properly sometime
     cond do
       path =~ ~r/^<postmaster(@.*)?>$/i ->
         case side do
