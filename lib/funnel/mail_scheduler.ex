@@ -18,23 +18,23 @@ defmodule Funnel.MailScheduler do
   end
 
   @impl true
-  def allow_path?(_, :mail_from, :null) do
+  def allow_reverse_path?(_, :null) do
     true
   end
 
   @impl true
-  def allow_path?(_, :mail_from, email) do
+  def allow_reverse_path?(_, email) do
     Funnel.AllowList.contains?(email)
   end
 
   @impl true
-  def allow_path?(_, :rcpt_to, :postmaster) do
-    true
+  def map_forward_path(_, :postmaster) do
+    {:ok, :postmaster}
   end
 
   @impl true
-  def allow_path?(_, :rcpt_to, email) do
-    Funnel.ForwardList.contains?(email)
+  def map_forward_path(_, email) do
+    Funnel.ForwardList.map(email)
   end
 
   # GenServer implementation

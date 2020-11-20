@@ -164,18 +164,21 @@ defmodule FunnelSMTP.Server do
   end
 
   defp handle_line(config, s = {:rcpt, mail}, {:rcpt_to, forward_path, _}) do
-    case FunnelSMTP.parse_mail_and_params(forward_path, :rcpt) do
-      {:ok, forward_path, params} ->
-        case receive_forward_path(config, mail, forward_path, params) do
-          {:ok, new_mail} ->
-            {:response, {:rcpt, new_mail}, 250, "OK"}
+    result =
+      with {:ok, forward_path, params} <-
+             FunnelSMTP.parse_mail_and_params(forward_path, :rcpt) do
+        receive_forward_path(config, mail, forward_path, params)
+      end
 
-          {:error, :forward_count_exceeded} ->
-            {:response, s, 452, "Too many recipients"}
+    case result do
+      {:ok, new_mail} ->
+        {:response, {:rcpt, new_mail}, 250, "OK"}
 
-          {:error, :access_denied} ->
-            {:response, s, 550, "Mailbox not found"}
-        end
+      {:error, :forward_count_exceeded} ->
+        {:response, s, 452, "Too many recipients"}
+
+      {:error, :access_denied} ->
+        {:response, s, 550, "Mailbox not found"}
 
       {:error, :unknown_param} ->
         {:response, s, 555, "RCPT TO parameters not recognized or not implemented"}
@@ -262,9 +265,8 @@ defmodule FunnelSMTP.Server do
           | {:error, :access_denied | :max_size_exceeded}
   defp receive_reverse_path(config, reverse_path, params) do
     is_allowed? =
-      FunnelSMTP.MailScheduler.allow_path?(
+      FunnelSMTP.MailScheduler.allow_reverse_path?(
         config.mail_scheduler,
-        :mail_from,
         reverse_path
       )
 
@@ -285,25 +287,28 @@ defmodule FunnelSMTP.Server do
 
   @spec receive_forward_path(map(), Mail.t(), String.t(), map()) ::
           {:ok, Mail.t()}
-          | {:error, :access_denied}
-          | {:error, :forward_count_exceeded}
+          | {:error, :access_denied | :forward_count_exceeded | term()}
   defp receive_forward_path(config, mail, forward_path, params) do
-    is_allowed? =
-      FunnelSMTP.MailScheduler.allow_path?(
+    maybe_forward_path =
+      FunnelSMTP.MailScheduler.map_forward_path(
         config.mail_scheduler,
-        :rcpt_to,
         forward_path
       )
 
-    if is_allowed? do
-      Mail.add_forward(mail, forward_path, params)
-    else
-      Logger.info(
-        "Access denied for RCPT TO:#{inspect(forward_path)}, " <>
-          "mail=#{inspect(mail)}"
-      )
+    case maybe_forward_path do
+      {:ok, forward_path} ->
+        Mail.add_forward(mail, forward_path, params)
 
-      {:error, :access_denied}
+      {:error, :not_found} ->
+        Logger.info(
+          "Access denied for RCPT TO:#{inspect(forward_path)}, " <>
+            "mail=#{inspect(mail)}"
+        )
+
+        {:error, :access_denied}
+
+      err = {:error, _} ->
+        err
     end
   end
 end
