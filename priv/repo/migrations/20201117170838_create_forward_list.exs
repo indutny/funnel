@@ -3,8 +3,8 @@ defmodule Funnel.Repo.Migrations.CreateForwardList do
 
   def change do
     create table("forward_list") do
-      add :from, :string
-      add :to, :string
+      add :source, :string
+      add :target, :string
       add :created_at, :utc_datetime
     end
   end

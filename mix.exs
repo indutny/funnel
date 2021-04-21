@@ -31,7 +31,7 @@ defmodule Funnel.MixProject do
       {:dialyxir, "~> 1.0", only: [:dev], runtime: false},
       {:typed_struct, "~> 0.2.1"},
       {:ecto_sql, "~> 3.0"},
-      {:postgrex, ">= 0.0.0"},
+      {:ecto_sqlite3, "~> 0.5.5"},
       # TODO(indutny): use to limit concurrency when reaching out to external
       # servers.
       {:poolboy, "~> 1.5.1"},

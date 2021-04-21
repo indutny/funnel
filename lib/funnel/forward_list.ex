@@ -10,13 +10,13 @@ defmodule Funnel.ForwardList do
   def map(email) do
     maybe_entry =
       ForwardList.Entry
-      |> where([p], p.from == ^email)
-      |> select([p], p.to)
+      |> where([p], p.source == ^email)
+      |> select([p], p.target)
       |> Funnel.Repo.one()
 
     case maybe_entry do
       nil -> {:error, :not_found}
-      entry -> {:ok, entry.to}
+      entry -> {:ok, entry.target}
     end
   end
 end

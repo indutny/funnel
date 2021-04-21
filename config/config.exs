@@ -1,8 +1,7 @@
 import Config
 
 config :funnel, Funnel.Repo,
-  database: "funnel_repo",
-  hostname: "localhost"
+  database: "database/funnel.db"
 
 config :funnel,
   ecto_repos: [Funnel.Repo],
