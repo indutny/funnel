@@ -36,7 +36,7 @@ defmodule FunnelSMTP.Server do
 
   @type line() :: String.t()
 
-  @type parsed_line() :: FunnelSTMP.command() | String.t()
+  @type parsed_line() :: FunnelSMTP.command() | String.t() | {:unknown, String.t()}
 
   @typep line_response ::
            {:no_response, state()}
@@ -122,10 +122,6 @@ defmodule FunnelSMTP.Server do
 
   defp parse_line(_, line) do
     {:ok, FunnelSMTP.parse_command(line)}
-  end
-
-  defp parse_line(line, _) do
-    {:ok, line}
   end
 
   @spec handle_line(Config.t(), state(), parsed_line()) :: line_response()
