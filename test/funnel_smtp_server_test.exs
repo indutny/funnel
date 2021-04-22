@@ -205,6 +205,36 @@ defmodule FunnelSMTPServerTest do
     assert send_line(conn, "RCPT TO:<postmaster>") == @ok
   end
 
+  test "should check command line size", %{conn: conn} do
+    handshake!(conn)
+
+    assert send_lines(conn, [
+             String.duplicate("X", 510),
+             String.duplicate("X", 511)
+           ]) == [
+             {:normal, 502, "Command not implemented"},
+             {:shutdown, 500, "Command line too long"}
+           ]
+  end
+
+  test "should check text line size", %{conn: conn} do
+    handshake!(conn)
+
+    assert send_lines(conn, [
+             "MAIL FROM:<>",
+             "RCPT TO:<postmaster>",
+             "DATA",
+             "." <> String.duplicate("X", 998),
+             "." <> String.duplicate("X", 999)
+           ]) == [
+             @ok,
+             @ok,
+             {:normal, 354, "Start mail input; end with <CRLF>.<CRLF>"},
+             :no_response,
+             {:shutdown, 500, "Text line too long"}
+           ]
+  end
+
   # Helpers
 
   defp handshake!(conn, mode \\ :normal) do

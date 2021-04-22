@@ -36,10 +36,15 @@ defmodule FunnelSMTP.Server do
 
   @type line() :: String.t()
 
+  @type parsed_line() :: FunnelSTMP.command() | String.t()
+
   @typep line_response ::
            {:no_response, state()}
            | {:response, state(), non_neg_integer(), String.t() | [String.t()]}
            | {:shutdown, non_neg_integer(), String.t()}
+
+  @max_command_line_size 512
+  @max_text_line_size 1000
 
   # Public API
 
@@ -74,30 +79,56 @@ defmodule FunnelSMTP.Server do
   def handle_call({:line, line}, _from, {state, config}) do
     Logger.debug("#{config.remote_domain} < #{String.trim_trailing(line)}")
 
-    line =
-      case state do
-        {:data, _, _} ->
-          line
+    case parse_line(state, line) do
+      {:ok, line} ->
+        case handle_line(config, state, line) do
+          {:no_response, new_state} ->
+            {:reply, :no_response, {new_state, config}}
 
-        _ ->
-          line
-          |> FunnelSMTP.parse_command()
-      end
+          {:response, new_state, code, response} ->
+            {:reply, {:normal, code, response}, {new_state, config}}
 
-    case handle_line(config, state, line) do
-      {:no_response, new_state} ->
-        {:reply, :no_response, {new_state, config}}
+          {:shutdown, code, response} ->
+            {:reply, {:shutdown, code, response}, {:shutdown, config}}
+        end
 
-      {:response, new_state, code, response} ->
-        {:reply, {:normal, code, response}, {new_state, config}}
-
-      {:shutdown, code, response} ->
+      {:error, code, response} ->
         {:reply, {:shutdown, code, response}, {:shutdown, config}}
     end
   end
 
-  @spec handle_line(Config.t(), state(), FunnelSMTP.command()) ::
-          line_response()
+  @spec parse_line(state(), line()) ::
+          {:ok, parsed_line()} | {:error, non_neg_integer(), String.t()}
+  defp parse_line({:data, _, :crlf}, line) when line == ".\r\n" do
+    {:ok, line}
+  end
+
+  defp parse_line({:data, _, _}, line) do
+    line =
+      with "." <> stripped <- line do
+        stripped
+      end
+
+    if byte_size(line) > @max_text_line_size do
+      {:error, 500, "Text line too long"}
+    else
+      {:ok, line}
+    end
+  end
+
+  defp parse_line(_, line) when byte_size(line) > @max_command_line_size do
+    {:error, 500, "Command line too long"}
+  end
+
+  defp parse_line(_, line) do
+    {:ok, FunnelSMTP.parse_command(line)}
+  end
+
+  defp parse_line(line, _) do
+    {:ok, line}
+  end
+
+  @spec handle_line(Config.t(), state(), parsed_line()) :: line_response()
   defp handle_line(config, state, line)
 
   defp handle_line(_, :handshake, {:rset, "", _}) do
@@ -219,11 +250,6 @@ defmodule FunnelSMTP.Server do
   end
 
   defp handle_line(config, {:data, mail, _}, data) do
-    data =
-      with "." <> stripped <- data do
-        stripped
-      end
-
     trailing =
       if String.ends_with?(data, "\r\n") do
         :crlf

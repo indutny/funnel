@@ -2,7 +2,7 @@ defmodule Funnel.Server.Protocol do
   use Task
   use TypedStruct
 
-  @type transport() :: module()
+  @typep transport() :: module()
 
   require Logger
 
@@ -10,14 +10,11 @@ defmodule Funnel.Server.Protocol do
     field :transport, module()
     field :remote, :ranch_transport.socket()
 
-    field :local_domain, String.t(), default: "funnel.localhost"
-    field :max_mail_size, non_neg_integer(), default: 30 * 1024 * 1024
-    # 5 minutes
-    field :read_timeout, timeout(), default: 5 * 60 * 1000
+    field :local_domain, String.t(), enforce: true
+    field :max_mail_size, non_neg_integer(), enforce: true
+    field :read_timeout, timeout(), enforce: true
 
-    # TODO(indutny): line size limit leads to unrecoverable :emsgsize error.
-    # Needs to be able to send the 500 response without closing the socket.
-    field :max_line_size, non_neg_integer(), default: 512
+    field :max_buffer_size, non_neg_integer(), default: 1024
   end
 
   alias FunnelSMTP.Server, as: SMTPServer
@@ -44,18 +41,23 @@ defmodule Funnel.Server.Protocol do
         mail_scheduler: {Funnel.MailScheduler, Funnel.MailScheduler}
       })
 
-    config = %Config{config| transport: transport, remote: remote}
+    config = %Config{config | transport: transport, remote: remote}
     send_response(config, SMTPServer.handshake(conn))
 
     serve(config, conn, <<>>)
   end
 
-  @spec serve(Config.t(), SMTPServer.t(), binary()) :: nil
+  @spec serve(Config.t(), SMTPServer.t(), String.t()) :: nil
   def serve(config, conn, buffer) do
     case config.transport.recv(config.remote, 0, config.read_timeout) do
       {:ok, packet} ->
-        buffer = buffer <> packet
-        buffer = read_line(config, conn, buffer)
+        buffer = read_line(config, conn, buffer <> packet)
+
+        if byte_size(buffer) > config.max_buffer_size do
+          send_response(config, {:shutdown, 500, "Line too long"})
+          exit(:shutdown)
+        end
+
         serve(config, conn, buffer)
 
       {:error, :closed} ->
@@ -63,7 +65,7 @@ defmodule Funnel.Server.Protocol do
     end
   end
 
-  @spec read_line(Config.t(), SMTPServer.t(), binary()) :: binary()
+  @spec read_line(Config.t(), SMTPServer.t(), String.t()) :: String.t()
   def read_line(config, conn, buffer) do
     case String.split(buffer, ~r/(?<=\r\n|\n)/, parts: 2) do
       [line, buffer] ->
@@ -78,7 +80,7 @@ defmodule Funnel.Server.Protocol do
   end
 
   @spec send_response(Config.t(), SMTPServer.response()) :: nil
-  defp send_response(_, :no_response) do
+  defp send_response(_config, :no_response) do
     # no-op
   end
 
@@ -96,7 +98,7 @@ defmodule Funnel.Server.Protocol do
   end
 
   @spec send_response(
-    Config.t(),
+          Config.t(),
           :not_last | :last,
           SMTPServer.response()
         ) :: nil

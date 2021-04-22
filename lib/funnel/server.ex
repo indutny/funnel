@@ -10,10 +10,6 @@ defmodule Funnel.Server do
     # 5 minutes
     field :read_timeout, timeout(), default: 5 * 60 * 1000
     field :port, :inet.port_number(), default: 0
-
-    # TODO(indutny): line size limit leads to unrecoverable :emsgsize error.
-    # Needs to be able to send the 500 response without closing the socket.
-    field :max_line_size, non_neg_integer(), default: 512
   end
 
   alias Funnel.Server.Protocol, as: Protocol
@@ -30,8 +26,7 @@ defmodule Funnel.Server do
       :ranch.start_listener(ref, :ranch_tcp, [port: config.port], Protocol, %Protocol.Config{
         local_domain: config.local_domain,
         max_mail_size: config.max_mail_size,
-        read_timeout: config.read_timeout,
-        max_line_size: config.max_line_size
+        read_timeout: config.read_timeout
       })
 
     {addr, port} = :ranch.get_addr(ref)
