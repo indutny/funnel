@@ -10,8 +10,8 @@ defmodule FunnelSMTPMailTest do
       mail =
         FunnelSMTP.Mail.new("a@b.com", %{}, "ohai")
         |> FunnelSMTP.Mail.add_trace(%FunnelSMTP.Mail.Trace{
-          source_name: "source.com",
-          source_addr: "1.2.3.4",
+          remote_name: "source.com",
+          remote_addr: "1.2.3.4",
           local_name: "local.com",
           local_addr: "4.3.2.1",
           timestamp: ~U[1984-02-16 07:06:40Z]

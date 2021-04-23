@@ -15,8 +15,8 @@ defmodule FunnelSMTP.Mail do
   end
 
   typedstruct module: Trace do
-    field :source_name, String.t(), enforce: true
-    field :source_addr, String.t(), enforce: true
+    field :remote_name, String.t(), enforce: true
+    field :remote_addr, String.t(), enforce: true
     field :local_name, String.t(), enforce: true
     field :local_addr, String.t(), enforce: true
     field :timestamp, DateTime.t(), default: DateTime.utc_now()
@@ -137,7 +137,7 @@ defmodule FunnelSMTP.Mail do
   @spec add_trace(t(), Trace.t()) :: t()
   def add_trace(mail, trace) do
     {reverse_path, _} = mail.reverse
-    extended_from = trace.source_name <> " (" <> trace.source_addr <> ")"
+    extended_from = trace.remote_name <> " (" <> trace.remote_addr <> ")"
     extended_by = trace.local_name <> " (" <> trace.local_addr <> ")"
 
     return_path = "Return-Path: <" <> reverse_path <> ">"
