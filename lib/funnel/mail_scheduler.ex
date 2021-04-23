@@ -4,6 +4,8 @@ defmodule Funnel.MailScheduler do
 
   @behaviour FunnelSMTP.MailScheduler
 
+  alias FunnelSMTP.Mail
+
   @spec start_link(GenServer.options()) :: GenServer.on_start()
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, :ok, opts)
@@ -12,7 +14,9 @@ defmodule Funnel.MailScheduler do
   # MailScheduler implementation
 
   @impl true
-  def schedule(_server, mail) do
+  def schedule(_server, mail, trace) do
+    mail = Mail.add_trace(mail, trace)
+
     Logger.info("New mail #{inspect(mail)}")
     # TODO(indutny): Implement me
   end

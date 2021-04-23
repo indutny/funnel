@@ -6,13 +6,13 @@ defmodule FunnelSMTP.MailScheduler do
   @type forward_result ::
           {:ok, FunnelSMTP.forward_path()} | {:error, :not_found | term()}
 
-  @callback schedule(t(), Mail.t()) :: :ok
+  @callback schedule(t(), Mail.t(), Mail.Trace.t()) :: :ok
   @callback allow_reverse_path?(t(), FunnelSMTP.reverse_path()) :: boolean()
   @callback map_forward_path(t(), FunnelSMTP.forward_path()) :: forward_result()
 
-  @spec schedule(impl(), Mail.t()) :: :ok
-  def schedule({implementation, server}, mail) do
-    implementation.schedule(server, mail)
+  @spec schedule(impl(), Mail.t(), Mail.Trace.t()) :: :ok
+  def schedule({implementation, server}, mail, trace) do
+    implementation.schedule(server, mail, trace)
   end
 
   @spec allow_reverse_path?(impl(), FunnelSMTP.reverse_path()) :: boolean()

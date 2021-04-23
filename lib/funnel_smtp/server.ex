@@ -240,7 +240,14 @@ defmodule FunnelSMTP.Server do
       Logger.info("Got new mail")
 
       mail = Mail.trim_trailing_crlf(mail)
-      :ok = MailScheduler.schedule(config.mail_scheduler, mail)
+
+      :ok =
+        MailScheduler.schedule(config.mail_scheduler, mail, %Mail.Trace{
+          local_domain: config.local_domain,
+          local_addr: config.local_addr,
+          remote_domain: config.remote_domain,
+          remote_addr: config.remote_addr
+        })
 
       {:response, :main, 250, "OK"}
     end

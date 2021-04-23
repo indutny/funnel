@@ -56,6 +56,17 @@ defmodule FunnelSMTPClientTest do
     assert {:ok, mail} = MockScheduler.pop(scheduler)
     assert mail.reverse == {"allowed@sender", %{size: 22}}
     assert mail.forward == [{"allowed@rcpt", %{}}]
-    assert mail.data == outgoing.data
+
+    assert mail.data ==
+             Enum.join(
+               [
+                 "Return-Path: <allowed@sender>",
+                 "Received: from client.example (4.3.2.1)",
+                 "          by server.example (1.2.3.4);",
+                 "          16 Feb 1984 07:06:40 +0000",
+                 outgoing.data
+               ],
+               "\r\n"
+             )
   end
 end

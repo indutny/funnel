@@ -147,7 +147,17 @@ defmodule FunnelSMTPServerTest do
              {"allowed@rcpt", %{}}
            ]
 
-    assert mail.data == "Hey!\r\nHow are you?\n."
+    assert mail.data ==
+             Enum.join(
+               [
+                 "Return-Path: <allowed@sender>",
+                 "Received: from remote.example (4.3.2.1)",
+                 "          by funnel.example (1.2.3.4);",
+                 "          16 Feb 1984 07:06:40 +0000",
+                 "Hey!\r\nHow are you?\n."
+               ],
+               "\r\n"
+             )
   end
 
   test "should limit recipient count", %{conn: conn} do
