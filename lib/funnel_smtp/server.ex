@@ -151,7 +151,6 @@ defmodule FunnelSMTP.Server do
     {:response, :main, 250,
      [
        "#{config.local_domain} greets #{config.remote_domain}",
-       # TODO(indutny): "STARTTLS",
        "8BITMIME",
        "PIPELINING",
        "SIZE #{config.max_mail_size}"

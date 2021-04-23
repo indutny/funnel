@@ -7,7 +7,12 @@ defmodule FunnelServerTest do
   doctest Server
 
   setup do
-    {:ok, _, %{port: port}} = start_supervised({Server, %Server.Config{}})
+    config = %Server.Config{
+      certfile: "priv/keys/cert.pem",
+      keyfile: "priv/keys/key.pem"
+    }
+
+    {:ok, _, %{port: port}} = start_supervised({Server, config})
 
     %{port: port}
   end
