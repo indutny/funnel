@@ -9,7 +9,8 @@ defmodule FunnelServerTest do
   setup do
     config = %Server.Config{
       certfile: "priv/keys/cert.pem",
-      keyfile: "priv/keys/key.pem"
+      keyfile: "priv/keys/key.pem",
+      dhfile: "priv/keys/dh.pem"
     }
 
     {:ok, _, %{port: port}} = start_supervised({Server, config})

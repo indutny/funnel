@@ -16,7 +16,6 @@ defmodule Funnel.Application do
 
     children = [
       {Funnel.Repo, []},
-      {Task.Supervisor, name: Funnel.ConnectionSupervisor},
       {Funnel.MailScheduler, name: Funnel.MailScheduler},
       {Funnel.ClientPool, name: Funnel.ClientPool},
       {Server, server_config}

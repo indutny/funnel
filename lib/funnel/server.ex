@@ -15,7 +15,7 @@ defmodule Funnel.Server do
     field :dhfile, String.t(), enforce: true
   end
 
-  alias Funnel.Server.Protocol, as: Protocol
+  alias Funnel.Server.Protocol
 
   @ciphers [
     {:ecdhe_ecdsa, :chacha20_poly1305, :aead, :sha256},
