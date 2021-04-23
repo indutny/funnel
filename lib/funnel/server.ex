@@ -12,6 +12,7 @@ defmodule Funnel.Server do
     field :port, :inet.port_number(), default: 0
     field :keyfile, String.t(), enforce: true
     field :certfile, String.t(), enforce: true
+    field :dhfile, String.t(), enforce: true
   end
 
   alias Funnel.Server.Protocol, as: Protocol
@@ -31,7 +32,10 @@ defmodule Funnel.Server do
     {:dhe_rsa, :aes_256_gcm, :aead, :sha384},
     {:dhe_rsa, :aes_256_cbc, :sha256},
     {:dhe_rsa, :aes_128_gcm, :aead, :sha256},
-    {:dhe_rsa, :aes_128_cbc, :sha256}
+    {:dhe_rsa, :aes_128_cbc, :sha256},
+    {:any, :chacha20_poly1305, :aead, :sha256},
+    {:any, :aes_256_gcm, :aead, :sha384},
+    {:any, :aes_128_gcm, :aead, :sha256}
   ]
 
   @moduledoc """
@@ -47,6 +51,7 @@ defmodule Funnel.Server do
       versions: [:"tlsv1.2", :"tlsv1.3"],
       certfile: config.certfile,
       keyfile: config.keyfile,
+      dhfile: config.dhfile,
       honor_cipher_order: true,
       ciphers: @ciphers
     ]

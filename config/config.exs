@@ -8,6 +8,7 @@ config :funnel,
   smtp_domain: "funnel.example",
   max_mail_size: 30 * 1024 * 1024,
   certfile: "priv/keys/cert.pem",
+  dhfile: "priv/keys/dh.pem",
   keyfile: "priv/keys/key.pem"
 
 if Mix.env() == :test do
