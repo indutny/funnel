@@ -19,7 +19,9 @@ defmodule FunnelSMTPClientTest do
         {Server,
          %Server.Config{
            local_domain: "server.example",
+           local_addr: "1.2.3.4",
            remote_domain: "client.example",
+           remote_addr: "4.3.2.1",
            max_mail_size: 1024,
            mail_scheduler: {MockScheduler, scheduler}
          }}

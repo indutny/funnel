@@ -30,13 +30,16 @@ defmodule Funnel.Server.Protocol do
     {:ok, remote} = :ranch.handshake(ref)
 
     {:ok, {remote_ip, _}} = transport.peername(remote)
+    {:ok, {local_ip, _}} = transport.sockname(remote)
     {:ok, remote_host} = :inet.gethostbyaddr(remote_ip)
     {:hostent, remote_domain, _, _, _, _} = remote_host
 
     {:ok, conn} =
       SMTPServer.start_link(%SMTPServer.Config{
         local_domain: config.local_domain,
+        local_addr: List.to_string(:inet.ntoa(local_ip)),
         remote_domain: List.to_string(remote_domain),
+        remote_addr: List.to_string(:inet.ntoa(remote_ip)),
         max_mail_size: config.max_mail_size,
         mail_scheduler: {Funnel.MailScheduler, Funnel.MailScheduler}
       })

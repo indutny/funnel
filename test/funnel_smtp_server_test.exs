@@ -27,7 +27,9 @@ defmodule FunnelSMTPServerTest do
         {Server,
          %Server.Config{
            local_domain: "funnel.example",
+           local_addr: "1.2.3.4",
            remote_domain: "remote.example",
+           remote_addr: "4.3.2.1",
            max_mail_size: @max_mail_size,
            max_anonymous_mail_size: @max_anonymous_mail_size,
            mail_scheduler: {MockScheduler, scheduler}

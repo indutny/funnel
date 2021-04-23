@@ -15,7 +15,9 @@ defmodule FunnelSMTP.Server do
 
   typedstruct module: Config, enforce: true do
     field :local_domain, String.t()
+    field :local_addr, String.t()
     field :remote_domain, String.t()
+    field :remote_addr, String.t()
     field :max_anonymous_mail_size, non_neg_integer(), default: 1024
     field :max_mail_size, non_neg_integer()
     field :mail_scheduler, MailScheduler.impl()
