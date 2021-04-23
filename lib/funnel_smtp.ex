@@ -37,6 +37,20 @@ defmodule FunnelSMTP do
   }
 
   @path_re FunnelSMTP.Address.compile()
+  @months {
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec"
+  }
 
   @doc ~S"""
   Parses the command sent by client.
@@ -365,6 +379,42 @@ defmodule FunnelSMTP do
     end
   end
 
+  @doc """
+  Formats datetime for `Received:` header
+
+  ## Examples
+
+      iex> FunnelSMTP.format_date(~U[1984-02-16 07:06:40Z])
+      "16 Feb 1984 07:06:40 +0000"
+
+  """
+  @spec format_date(DateTime.t()) :: String.t()
+  def format_date(date) do
+    time =
+      Enum.join(
+        [
+          two_digit(date.hour),
+          two_digit(date.minute),
+          two_digit(date.second)
+        ],
+        ":"
+      )
+
+    # TODO(indutny): be nice an give real timezone
+    zone = "+0000"
+
+    Enum.join(
+      [
+        date.day,
+        elem(@months, date.month - 1),
+        date.year,
+        time,
+        zone
+      ],
+      " "
+    )
+  end
+
   #
   # Private helpers
   #
@@ -396,5 +446,13 @@ defmodule FunnelSMTP do
 
   defp parse_mail_param(_, _, _) do
     {:error, :unknown_param}
+  end
+
+  defp two_digit(n) when n < 10 do
+    "0" <> Integer.to_string(n)
+  end
+
+  defp two_digit(n) do
+    Integer.to_string(n)
   end
 end

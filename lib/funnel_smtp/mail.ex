@@ -14,6 +14,14 @@ defmodule FunnelSMTP.Mail do
     field :data, binary(), enforce: true
   end
 
+  typedstruct module: Trace do
+    field :source_name, String.t(), enforce: true
+    field :source_addr, String.t(), enforce: true
+    field :local_name, String.t(), enforce: true
+    field :local_addr, String.t(), enforce: true
+    field :timestamp, DateTime.t(), default: DateTime.utc_now()
+  end
+
   alias FunnelSMTP.Mail
 
   @doc """
@@ -121,5 +129,30 @@ defmodule FunnelSMTP.Mail do
       {:null, _} -> true
       _ -> false
     end
+  end
+
+  @doc """
+  Add tracing information to email.
+  """
+  @spec add_trace(t(), Trace.t()) :: t()
+  def add_trace(mail, trace) do
+    {reverse_path, _} = mail.reverse
+    extended_from = trace.source_name <> " (" <> trace.source_addr <> ")"
+    extended_by = trace.local_name <> " (" <> trace.local_addr <> ")"
+
+    return_path = "Return-Path: <" <> reverse_path <> ">"
+
+    received =
+      "Received: from " <>
+        extended_from <>
+        "\r\n" <>
+        "          by " <>
+        extended_by <>
+        ";\r\n" <>
+        "          " <> FunnelSMTP.format_date(trace.timestamp)
+
+    header = return_path <> "\r\n" <> received <> "\r\n"
+
+    %Mail{mail | data: header <> mail.data}
   end
 end

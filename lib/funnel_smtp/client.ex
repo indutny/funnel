@@ -159,6 +159,8 @@ defmodule FunnelSMTP.Client do
     Connection.send(remote, "DATA\r\n")
     {:ok, 354, _} = receive_response(remote)
 
+    # NOTE: We validate that each line in `mail.data` is at most 1000 bytes
+    # long (inluding trailing CRLF) in server.ex
     Connection.send(remote, mail.data)
 
     # NOTE: Splitted in two to make tests happy.
