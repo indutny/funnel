@@ -19,7 +19,7 @@ defmodule FunnelClientTest do
       start_supervised!(
         {Client,
          %Client.Config{
-           host: "localhost",
+           host: "mxloopback.dev",
            port: MockServer.get_port(),
            insecure: true
          }}

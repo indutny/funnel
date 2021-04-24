@@ -23,6 +23,8 @@ defmodule Funnel.Client do
     field :max_line_size, non_neg_integer(), default: 512
 
     field :insecure, boolean(), default: false
+    field :lookup_fun, {(... -> {:ok, String.t()} | {:error, atom()}), [any()]},
+      default: {&Funnel.Client.lookup/1, []}
   end
 
   alias FunnelSMTP.Client, as: SMTPClient
@@ -88,5 +90,28 @@ defmodule Funnel.Client do
   @impl true
   def handle_call({:send, mail}, _from, s = {:connected, _, smtp}) do
     {:reply, SMTPClient.send(smtp, mail), s}
+  end
+
+  # Helper methods
+
+  @doc ~S"""
+  Resolves MX record to a hostname
+
+  ## Examples
+
+      iex> {:ok, addr} = Funnel.Client.lookup("mxloopback.dev")
+      iex> addr in ["mx.mxloopback.dev", "mx2.mxloopback.dev"]
+      true
+
+  """
+  @spec lookup(String.t()) :: String.t() | {:error, :empty}
+  def lookup(host) do
+    case :inet_res.lookup(String.to_charlist(host), :in, :mx) do
+      [] ->
+        {:error, :empty}
+      results ->
+        {_priority, name} = Enum.random(results)
+        {:ok, List.to_string(name)}
+    end
   end
 end

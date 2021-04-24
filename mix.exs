@@ -35,8 +35,6 @@ defmodule Funnel.MixProject do
       # TODO(indutny): use to limit concurrency when reaching out to external
       # servers.
       {:poolboy, "~> 1.5.1"},
-      # TODO(indutny): use in conjunction with STARTTLS to verify the remote
-      # server?
       {:ssl_verify_fun, "~> 1.1"},
       # TODO(indutny): use this for better TCP server performance.
       {:ranch, "~> 2.0"}

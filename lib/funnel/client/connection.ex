@@ -8,9 +8,13 @@ defmodule Funnel.Client.Connection do
 
   @spec connect(config()) :: {:ok, t()} | {:error, term()}
   def connect(config) do
-    host = String.to_charlist(config.host)
     port = config.port
     connect_timeout = config.connect_timeout
+
+    {lookup_fun, lookup_args} = config.lookup_fun
+    {:ok, resolved} = apply(lookup_fun, lookup_args ++ [config.host])
+    host = String.to_charlist(resolved)
+    IO.inspect(host)
 
     opts = [
       :binary,
