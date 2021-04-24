@@ -4,6 +4,7 @@ defmodule Funnel.Application do
   use Application
 
   alias Funnel.Server
+  alias Funnel.MailScheduler
 
   @impl true
   def start(_type, _args) do
@@ -17,7 +18,7 @@ defmodule Funnel.Application do
 
     children = [
       {Funnel.Repo, []},
-      {Funnel.MailScheduler, name: Funnel.MailScheduler},
+      {MailScheduler, name: MailScheduler},
       {Server, server_config}
     ]
 

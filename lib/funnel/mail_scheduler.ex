@@ -1,15 +1,25 @@
 defmodule Funnel.MailScheduler do
   use GenServer
+  use TypedStruct
+
   require Logger
 
   @behaviour FunnelSMTP.MailScheduler
 
+  typedstruct module: Config do
+    field :allow_list, module(), default: Funnel.AllowList
+    field :forward_list, module(), default: Funnel.ForwardList
+  end
+
+  @type options :: [GenServer.option() | {:config, Config.t()}]
+
   alias FunnelSMTP.Mail
   alias Funnel.Client
 
-  @spec start_link(GenServer.options()) :: GenServer.on_start()
+  @spec start_link(options) :: GenServer.on_start()
   def start_link(opts \\ []) do
-    GenServer.start_link(__MODULE__, :ok, opts)
+    config = Keyword.get(opts, :config, %Config{})
+    GenServer.start_link(__MODULE__, config, opts)
   end
 
   @spec forward_mail([{Mail.forward_path(), Mail.forward_params()}], Mail.t()) :: :ok
@@ -38,10 +48,12 @@ defmodule Funnel.MailScheduler do
   # MailScheduler implementation
 
   @impl true
-  def schedule(_server, mail, trace) do
+  def schedule(_, mail, trace) do
     mail = Mail.add_trace(mail, trace)
 
     # TODO(indutny): put email into database, and send asynchronously
+    # NOTE: Until async send is here - it must be sent outside of GenServer to
+    # allow concurrency
     :ok = forward_mail(mail.forward, mail)
   end
 
@@ -51,8 +63,8 @@ defmodule Funnel.MailScheduler do
   end
 
   @impl true
-  def allow_reverse_path?(_, email) do
-    Funnel.AllowList.contains?(email)
+  def allow_reverse_path?(server, email) do
+    GenServer.call(server, {:allow_reverse_path?, email})
   end
 
   @impl true
@@ -61,14 +73,24 @@ defmodule Funnel.MailScheduler do
   end
 
   @impl true
-  def map_forward_path(_, email) do
-    Funnel.ForwardList.map(email)
+  def map_forward_path(server, email) do
+    GenServer.call(server, {:map_forward_path, email})
   end
 
   # GenServer implementation
 
   @impl true
-  def init(state) do
-    {:ok, state}
+  def init(config) do
+    {:ok, config}
+  end
+
+  @impl true
+  def handle_call({:allow_reverse_path?, email}, _from, config) do
+    {:reply, config.allow_list.contains?(email), config}
+  end
+
+  @impl true
+  def handle_call({:map_forward_path, email}, _from, config) do
+    {:reply, config.forward_list.map(email), config}
   end
 end
