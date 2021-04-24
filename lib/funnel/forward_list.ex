@@ -9,7 +9,7 @@ defmodule Funnel.ForwardList do
 
   def map(email) do
     maybe_entry =
-      ForwardList.Entry
+      Funnel.ForwardList.Entry
       |> where([p], p.source == ^email)
       |> select([p], p.target)
       |> Funnel.Repo.one()
