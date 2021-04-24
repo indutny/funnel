@@ -20,7 +20,8 @@ defmodule FunnelClientTest do
         {Client,
          %Client.Config{
            host: "localhost",
-           port: MockServer.get_port()
+           port: MockServer.get_port(),
+           insecure: true
          }}
       )
 

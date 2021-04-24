@@ -21,6 +21,8 @@ defmodule Funnel.Client do
     # TODO(indutny): line size limit leads to unrecoverable :emsgsize error.
     # Needs to be able to send the 500 response without closing the socket.
     field :max_line_size, non_neg_integer(), default: 512
+
+    field :insecure, boolean(), default: false
   end
 
   alias FunnelSMTP.Client, as: SMTPClient

@@ -2,26 +2,48 @@ defmodule Funnel.Client.Connection do
   use TypedStruct
 
   @type config() :: Funnel.Client.Config
-  @type t() :: {config(), :gen_tcp.socket()}
+  @type t() :: {config(), :ssl.socket()}
 
   @behaviour FunnelSMTP.Connection
 
   @spec connect(config()) :: {:ok, t()} | {:error, term()}
   def connect(config) do
+    host = String.to_charlist(config.host)
+    port = config.port
+    connect_timeout = config.connect_timeout
+
     opts = [
       :binary,
       packet: :line,
       packet_size: config.max_line_size,
-      active: false
+      active: false,
+
+      # TLS configuration
+      versions: [:"tlsv1.2", :"tlsv1.3"],
+      ciphers: Funnel.get_ciphers(),
+      server_name_indication: host,
+      reuse_sessions: false
     ]
 
-    with {:ok, socket} <-
-           :gen_tcp.connect(
-             String.to_charlist(config.host),
-             config.port,
-             opts,
-             config.connect_timeout
-           ) do
+    opts =
+      case config.insecure do
+        false ->
+          [
+            opts
+            | [
+                verify_fun: {
+                  &:ssl_verify_hostname.verify_fun/3,
+                  [{:check_hostname, host}]
+                },
+                verify: :verify_peer
+              ]
+          ]
+
+        true ->
+          opts
+      end
+
+    with {:ok, socket} <- :ssl.connect(host, port, opts, connect_timeout) do
       {:ok, {config, socket}}
     end
   end
@@ -30,16 +52,16 @@ defmodule Funnel.Client.Connection do
 
   @impl FunnelSMTP.Connection
   def send({_, socket}, line) do
-    :gen_tcp.send(socket, line)
+    :ssl.send(socket, line)
   end
 
   @impl FunnelSMTP.Connection
   def recv_line({config, socket}) do
-    :gen_tcp.recv(socket, 0, config.read_timeout)
+    :ssl.recv(socket, 0, config.read_timeout)
   end
 
   @impl FunnelSMTP.Connection
   def close({_, socket}) do
-    :gen_tcp.close(socket)
+    :ssl.close(socket)
   end
 end
