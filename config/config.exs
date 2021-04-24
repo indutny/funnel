@@ -14,8 +14,10 @@ config :funnel,
 case Mix.env() do
   :test ->
     import_config "test.exs"
+
   :prod ->
     import_config "prod.exs"
+
   _ ->
     :ok
 end

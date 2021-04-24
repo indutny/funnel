@@ -23,6 +23,7 @@ defmodule Funnel.Client do
     field :max_line_size, non_neg_integer(), default: 512
 
     field :insecure, boolean(), default: false
+
     field :lookup_fun, {(... -> {:ok, String.t()} | {:error, atom()}), [any()]},
       default: {&Funnel.Client.lookup/1, []}
   end
@@ -109,6 +110,7 @@ defmodule Funnel.Client do
     case :inet_res.lookup(String.to_charlist(host), :in, :mx) do
       [] ->
         {:error, :empty}
+
       results ->
         {_priority, name} = Enum.random(results)
         {:ok, List.to_string(name)}
