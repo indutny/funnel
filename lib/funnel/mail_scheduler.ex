@@ -5,10 +5,34 @@ defmodule Funnel.MailScheduler do
   @behaviour FunnelSMTP.MailScheduler
 
   alias FunnelSMTP.Mail
+  alias Funnel.Client
 
   @spec start_link(GenServer.options()) :: GenServer.on_start()
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, :ok, opts)
+  end
+
+  @spec forward_mail([{Mail.forward_path(), Mail.forward_params()}], Mail.t()) :: :ok
+  defp forward_mail([{forward_path, _} | rest], mail) do
+    Logger.info("Forwarding mail to #{forward_path}")
+
+    [_, host] = String.split(forward_path, "@", parts: 2)
+
+    {:ok, client} =
+      Client.start_link(%Client.Config{
+        host: host,
+        local_domain: Application.fetch_env!(:funnel, :smtp_domain)
+      })
+
+    :ok = Client.connect(client)
+    :ok = Client.send(client, mail)
+    :ok = Client.close(client)
+
+    forward_mail(rest, mail)
+  end
+
+  defp forward_mail([], _mail) do
+    :ok
   end
 
   # MailScheduler implementation
@@ -17,8 +41,8 @@ defmodule Funnel.MailScheduler do
   def schedule(_server, mail, trace) do
     mail = Mail.add_trace(mail, trace)
 
-    Logger.info("New mail #{inspect(mail)}")
-    # TODO(indutny): Implement me
+    # TODO(indutny): put email into database, and send asynchronously
+    :ok = forward_mail(mail.forward, mail)
   end
 
   @impl true
@@ -44,23 +68,7 @@ defmodule Funnel.MailScheduler do
   # GenServer implementation
 
   @impl true
-  def init(:ok) do
-    {:ok, :queue.new()}
-  end
-
-  @impl true
-  def handle_call({:schedule, mail}, _from, queue) do
-    {:reply, :ok, :queue.in(mail, queue)}
-  end
-
-  @impl true
-  def handle_call(:pop, _from, queue) do
-    case :queue.out(queue) do
-      {{:value, mail}, queue} ->
-        {:reply, {:mail, mail}, queue}
-
-      {:empty, queue} ->
-        {:reply, :empty, queue}
-    end
+  def init(state) do
+    {:ok, state}
   end
 end

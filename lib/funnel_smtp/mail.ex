@@ -137,19 +137,15 @@ defmodule FunnelSMTP.Mail do
   @spec add_trace(t(), Trace.t()) :: t()
   def add_trace(mail, trace) do
     {reverse_path, _} = mail.reverse
-    extended_from = trace.remote_domain <> " (" <> trace.remote_addr <> ")"
-    extended_by = trace.local_domain <> " (" <> trace.local_addr <> ")"
+    extended_from = "#{trace.remote_domain} (#{trace.remote_addr})"
+    extended_by = "#{trace.local_domain} (#{trace.local_addr})"
 
-    return_path = "Return-Path: <" <> reverse_path <> ">"
+    return_path = "Return-Path: <#{reverse_path}>"
 
     received =
-      "Received: from " <>
-        extended_from <>
-        "\r\n" <>
-        "          by " <>
-        extended_by <>
-        ";\r\n" <>
-        "          " <> FunnelSMTP.format_date(trace.timestamp)
+      "Received: from #{extended_from}\r\n" <>
+        "          by #{extended_by};\r\n" <>
+        "          #{FunnelSMTP.format_date(trace.timestamp)}"
 
     header = return_path <> "\r\n" <> received <> "\r\n"
 

@@ -46,6 +46,11 @@ defmodule Funnel.Client do
     GenServer.call(client, :connect, :infinity)
   end
 
+  @spec close(t()) :: :ok | {:error, term()}
+  def close(client) do
+    GenServer.call(client, :close)
+  end
+
   @spec send(t(), Mail.t(), timeout()) :: :ok | {:error, term()}
   def send(client, mail, timeout \\ 5000) do
     GenServer.call(client, {:send, mail}, timeout)
@@ -64,7 +69,6 @@ defmodule Funnel.Client do
       local_domain: config.local_domain
     }
 
-    # TODO(indutny): connect to SSL port first and only then to default one.
     {:ok, conn} = Connection.connect(config)
     conn = {Funnel.Client.Connection, conn}
 
@@ -73,6 +77,12 @@ defmodule Funnel.Client do
     :ok = SMTPClient.handshake(smtp)
 
     {:reply, :ok, {:connected, config, smtp}}
+  end
+
+  @impl true
+  def handle_call(:close, _from, {:connected, config, smtp}) do
+    :ok = SMTPClient.quit(smtp)
+    {:stop, :closed, :ok, {:not_connected, config}}
   end
 
   @impl true
