@@ -13,7 +13,7 @@ defmodule Funnel.Client.Connection do
     connect_timeout = config.connect_timeout
 
     opts = [
-      :binary,
+      format: :binary,
       packet: :line,
       packet_size: config.max_line_size,
       active: false,
