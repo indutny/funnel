@@ -16,7 +16,7 @@ defmodule Funnel.ForwardList do
 
     case maybe_entry do
       nil -> {:error, :not_found}
-      entry -> {:ok, entry.target}
+      target -> {:ok, target}
     end
   end
 end
