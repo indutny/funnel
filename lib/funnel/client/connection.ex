@@ -14,7 +14,6 @@ defmodule Funnel.Client.Connection do
     {lookup_fun, lookup_args} = config.lookup_fun
     {:ok, resolved} = apply(lookup_fun, lookup_args ++ [config.host])
     host = String.to_charlist(resolved)
-    IO.inspect(host)
 
     opts = [
       :binary,
