@@ -1,5 +1,8 @@
 defmodule Funnel do
-  @spec get_ciphers() :: :ssl.ciphers()
+  @type full_cipher() :: {atom(), atom(), atom(), atom()}
+  @type cipher() :: {atom(), atom(), atom()}
+
+  @spec get_ciphers() :: [full_cipher() | cipher()]
   def get_ciphers() do
     [
       {:ecdhe_ecdsa, :chacha20_poly1305, :aead, :sha256},
