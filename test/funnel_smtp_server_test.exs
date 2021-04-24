@@ -13,7 +13,7 @@ defmodule FunnelSMTPServerTest do
   # Just a constant
   @handshake {:normal, 250,
               [
-                "funnel.example greets remote.example",
+                "funnel.example greets iam.test (4.3.2.1)",
                 "8BITMIME",
                 "PIPELINING",
                 "SIZE #{@max_mail_size}"
@@ -151,7 +151,7 @@ defmodule FunnelSMTPServerTest do
              Enum.join(
                [
                  "Return-Path: <allowed@sender>",
-                 "Received: from remote.example (4.3.2.1)",
+                 "Received: from iam.test (4.3.2.1)",
                  "          by funnel.example (1.2.3.4);",
                  "          16 Feb 1984 07:06:40 +0000",
                  "Hey!\r\nHow are you?\n."

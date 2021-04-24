@@ -39,7 +39,7 @@ defmodule FunnelClientTest do
     assert MockServer.accept() == :ok
     send_line!("220 Hello")
     assert MockServer.recv_line() == "EHLO funnel.localhost\r\n"
-    send_line!("250 funnel.example greets remote.example")
+    send_line!("250 funnel.example greets funnel.localhost")
     assert MockServer.recv_line() == "MAIL FROM:<from@me>\r\n"
     send_line!("250 OK")
     assert MockServer.recv_line() == "RCPT TO:<to@you>\r\n"

@@ -9,7 +9,7 @@ defmodule Funnel.Client do
 
   typedstruct module: Config do
     field :host, String.t(), ensure: true
-    field :port, :inet.port_number(), default: 25
+    field :port, :inet.port_number(), default: 465
     field :local_domain, String.t(), default: "funnel.localhost"
 
     # 5 minutes

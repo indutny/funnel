@@ -43,6 +43,7 @@ defmodule FunnelSMTP.Server do
   @typep line_response ::
            {:no_response, state()}
            | {:response, state(), non_neg_integer(), String.t() | [String.t()]}
+           | {:response, state(), non_neg_integer(), String.t() | [String.t()], Config.t()}
            | {:shutdown, non_neg_integer(), String.t()}
 
   @max_command_line_size 512
@@ -89,6 +90,9 @@ defmodule FunnelSMTP.Server do
 
           {:response, new_state, code, response} ->
             {:reply, {:normal, code, response}, {new_state, config}}
+
+          {:response, new_state, code, response, new_config} ->
+            {:reply, {:normal, code, response}, {new_state, new_config}}
 
           {:shutdown, code, response} ->
             {:reply, {:shutdown, code, response}, {:shutdown, config}}
@@ -149,14 +153,14 @@ defmodule FunnelSMTP.Server do
     {:response, :main, 250, "OK"}
   end
 
-  defp handle_line(config, :handshake, {:ehlo, _domain, _}) do
+  defp handle_line(config, :handshake, {:ehlo, domain, _}) do
     {:response, :main, 250,
      [
-       "#{config.local_domain} greets #{config.remote_domain}",
+       "#{config.local_domain} greets #{domain} (#{config.remote_addr})",
        "8BITMIME",
        "PIPELINING",
        "SIZE #{config.max_mail_size}"
-     ]}
+     ], %Config{config | remote_domain: domain}}
   end
 
   defp handle_line(_, :main, {:vrfy, _, _}) do
