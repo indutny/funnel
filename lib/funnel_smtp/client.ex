@@ -25,6 +25,11 @@ defmodule FunnelSMTP.Client do
       Enum.any?(config.extensions, &(&1 == :mime8bit))
     end
 
+    @spec supports_starttls?(t()) :: boolean()
+    def supports_starttls?(config) do
+      Enum.any?(config.extensions, &(&1 == :starttls))
+    end
+
     @spec supports_size?(t()) :: boolean()
     def supports_size?(config) do
       Enum.any?(config.extensions, &match?({:size, _}, &1))
@@ -87,7 +92,11 @@ defmodule FunnelSMTP.Client do
 
     config = %Config{config | extensions: extensions}
 
-    {:reply, :ok, {config, remote}}
+    if Config.supports_starttls?(config) do
+      {:reply, :ok, {config, remote}}
+    else
+      {:reply, {:error, "STARTTLS is not supported"}, {config, remote}}
+    end
   end
 
   @impl true

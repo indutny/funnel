@@ -16,7 +16,8 @@ defmodule FunnelSMTPServerTest do
                 "funnel.example greets iam.test (4.3.2.1)",
                 "8BITMIME",
                 "PIPELINING",
-                "SIZE #{@max_mail_size}"
+                "SIZE #{@max_mail_size}",
+                "STARTTLS"
               ]}
 
   setup do

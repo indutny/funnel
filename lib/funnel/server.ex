@@ -26,8 +26,12 @@ defmodule Funnel.Server do
     ref = make_ref()
 
     ranch_opts = [
-      port: config.port,
+      port: config.port
+    ]
+
+    ssl_opts = [
       versions: [:"tlsv1.2", :"tlsv1.3"],
+      # TODO(indutny): do we need to cache these?
       certfile: config.certfile,
       keyfile: config.keyfile,
       dhfile: config.dhfile,
@@ -38,10 +42,11 @@ defmodule Funnel.Server do
     protocol_config = %Protocol.Config{
       local_domain: config.local_domain,
       max_mail_size: config.max_mail_size,
-      read_timeout: config.read_timeout
+      read_timeout: config.read_timeout,
+      ssl_opts: ssl_opts
     }
 
-    {:ok, pid} = :ranch.start_listener(ref, :ranch_ssl, ranch_opts, Protocol, protocol_config)
+    {:ok, pid} = :ranch.start_listener(ref, :ranch_tcp, ranch_opts, Protocol, protocol_config)
 
     {addr, port} = :ranch.get_addr(ref)
 

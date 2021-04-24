@@ -21,6 +21,8 @@ defmodule FunnelSMTP.Server do
     field :max_anonymous_mail_size, non_neg_integer(), default: 1024
     field :max_mail_size, non_neg_integer()
     field :mail_scheduler, MailScheduler.impl()
+
+    field :mode, :insecure | :secure, default: :insecure
   end
 
   @type t :: GenServer.server()
@@ -34,7 +36,7 @@ defmodule FunnelSMTP.Server do
 
   @type response() ::
           :no_response
-          | {:normal | :shutdown, non_neg_integer(), String.t() | [String.t()]}
+          | {:normal | :shutdown | :starttls, non_neg_integer(), String.t() | [String.t()]}
 
   @type line() :: String.t()
 
@@ -44,6 +46,7 @@ defmodule FunnelSMTP.Server do
            {:no_response, state()}
            | {:response, state(), non_neg_integer(), String.t() | [String.t()]}
            | {:response, state(), non_neg_integer(), String.t() | [String.t()], Config.t()}
+           | {:starttls, state(), non_neg_integer(), String.t() | [String.t()]}
            | {:shutdown, non_neg_integer(), String.t()}
 
   @max_command_line_size 512
@@ -93,6 +96,9 @@ defmodule FunnelSMTP.Server do
 
           {:response, new_state, code, response, new_config} ->
             {:reply, {:normal, code, response}, {new_state, new_config}}
+
+          {:starttls, new_state, code, response} ->
+            {:reply, {:starttls, code, response}, {new_state, config}}
 
           {:shutdown, code, response} ->
             {:reply, {:shutdown, code, response}, {:shutdown, config}}
@@ -154,13 +160,28 @@ defmodule FunnelSMTP.Server do
   end
 
   defp handle_line(config, :handshake, {:ehlo, domain, _}) do
-    {:response, :main, 250,
-     [
-       "#{config.local_domain} greets #{domain} (#{config.remote_addr})",
-       "8BITMIME",
-       "PIPELINING",
-       "SIZE #{config.max_mail_size}"
-     ], %Config{config | remote_domain: domain}}
+    greeting = "#{config.local_domain} greets #{domain} (#{config.remote_addr})"
+
+    extensions = [
+      "8BITMIME",
+      "PIPELINING",
+      "SIZE #{config.max_mail_size}"
+    ]
+
+    extensions =
+      case config.mode do
+        :insecure ->
+          extensions ++ ["STARTTLS"]
+
+        :secure ->
+          extensions
+      end
+
+    {:response, :main, 250, [greeting] ++ extensions, %Config{config | remote_domain: domain}}
+  end
+
+  defp handle_line(_, :main, {:starttls, "", _}) do
+    {:starttls, :handshake, 220, "Go ahead"}
   end
 
   defp handle_line(_, :main, {:vrfy, _, _}) do

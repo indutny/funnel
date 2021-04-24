@@ -10,7 +10,17 @@ defmodule FunnelSMTP do
   @type forward_path :: :postmaster | String.t()
 
   @type command_kind ::
-          :helo | :ehlo | :mail_from | :rcpt_to | :data | :rset | :noop | :quit | :vrfy | :help
+          :helo
+          | :ehlo
+          | :mail_from
+          | :rcpt_to
+          | :data
+          | :rset
+          | :noop
+          | :quit
+          | :vrfy
+          | :help
+          | :starttls
   @type command_extra :: String.t()
   @type command_trailing :: :crlf | :lf
   @type command :: {command_kind(), command_extra(), command_trailing()}
@@ -33,7 +43,8 @@ defmodule FunnelSMTP do
     ~r/^NOOP(\s|$)/i => :noop,
     ~r/^QUIT(\s|$)/i => :quit,
     ~r/^VRFY(\s|$)/i => :vrfy,
-    ~r/^HELP(\s|$)/i => :help
+    ~r/^HELP(\s|$)/i => :help,
+    ~r/^STARTTLS(\s|$)/i => :starttls
   }
 
   @path_re FunnelSMTP.Address.compile()

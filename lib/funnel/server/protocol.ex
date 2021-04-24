@@ -2,6 +2,8 @@ defmodule Funnel.Server.Protocol do
   use Task
   use TypedStruct
 
+  @behaviour :ranch_protocol
+
   @typep transport() :: module()
 
   require Logger
@@ -15,6 +17,8 @@ defmodule Funnel.Server.Protocol do
     field :read_timeout, timeout(), enforce: true
 
     field :max_buffer_size, non_neg_integer(), default: 1024
+
+    field :ssl_opts, :ranch_ssl.opts(), enforce: true
   end
 
   alias FunnelSMTP.Server, as: SMTPServer
@@ -54,7 +58,7 @@ defmodule Funnel.Server.Protocol do
   def serve(config, conn, buffer) do
     case config.transport.recv(config.remote, 0, config.read_timeout) do
       {:ok, packet} ->
-        buffer = read_line(config, conn, buffer <> packet)
+        {config, buffer} = read_line(config, conn, buffer <> packet)
 
         if byte_size(buffer) > config.max_buffer_size do
           send_response(config, {:shutdown, 500, "Line too long"})
@@ -68,21 +72,21 @@ defmodule Funnel.Server.Protocol do
     end
   end
 
-  @spec read_line(Config.t(), SMTPServer.t(), String.t()) :: String.t()
+  @spec read_line(Config.t(), SMTPServer.t(), String.t()) :: {Config.t(), String.t()}
   def read_line(config, conn, buffer) do
     case String.split(buffer, ~r/(?<=\r\n|\n)/, parts: 2) do
       [line, buffer] ->
         response = SMTPServer.respond_to(conn, line)
-        send_response(config, response)
+        config = send_response(config, response)
 
         read_line(config, conn, buffer)
 
       [buffer] ->
-        buffer
+        {config, buffer}
     end
   end
 
-  @spec send_response(Config.t(), SMTPServer.response()) :: nil
+  @spec send_response(Config.t(), SMTPServer.response()) :: Config.t()
   defp send_response(_config, :no_response) do
     # no-op
   end
@@ -96,7 +100,7 @@ defmodule Funnel.Server.Protocol do
   end
 
   defp send_response(config, {mode, code, [line | rest]}) do
-    send_response(config, :not_last, {mode, code, line})
+    config = send_response(config, :not_last, {mode, code, line})
     send_response(config, {mode, code, rest})
   end
 
@@ -104,7 +108,7 @@ defmodule Funnel.Server.Protocol do
           Config.t(),
           :not_last | :last,
           SMTPServer.response()
-        ) :: nil
+        ) :: Config.t()
   defp send_response(config, order, {mode, code, line}) do
     response =
       case order do
@@ -117,8 +121,17 @@ defmodule Funnel.Server.Protocol do
       {:error, :closed} -> exit(:shutdown)
     end
 
-    if order == :last and mode == :shutdown do
-      :ok = config.transport.shutdown(config.remote, :write)
+    case mode do
+      :shutdown when order == :last ->
+        :ok = config.transport.shutdown(config.remote, :write)
+        config
+
+      :starttls when config.transport == :ranch_tcp ->
+        {:ok, secure} = :ranch_ssl.handshake(config.remote, config.ssl_opts, config.read_timeout)
+        %Config{config | transport: :ranch_ssl, remote: secure}
+
+      _ ->
+        config
     end
   end
 end
