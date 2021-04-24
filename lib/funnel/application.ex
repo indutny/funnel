@@ -8,6 +8,8 @@ defmodule Funnel.Application do
   @impl true
   def start(_type, _args) do
     server_config = %Server.Config{
+      local_domain: Application.fetch_env!(:funnel, :smtp_domain),
+
       port: Application.fetch_env!(:funnel, :port),
       certfile: Application.fetch_env!(:funnel, :certfile),
       dhfile: Application.fetch_env!(:funnel, :dhfile),
