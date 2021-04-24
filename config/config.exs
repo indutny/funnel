@@ -16,4 +16,6 @@ case Mix.env() do
     import_config "test.exs"
   :prod ->
     import_config "prod.exs"
+  _ ->
+    :ok
 end
