@@ -11,6 +11,9 @@ config :funnel,
   dhfile: "priv/keys/dh.pem",
   keyfile: "priv/keys/key.pem"
 
-if Mix.env() == :test do
-  import_config "test.exs"
+case Mix.env() do
+  :test ->
+    import_config "test.exs"
+  :prod ->
+    import_config "prod.exs"
 end
