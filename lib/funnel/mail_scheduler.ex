@@ -11,7 +11,7 @@ defmodule Funnel.MailScheduler do
     field :forward_list, module(), default: Funnel.ForwardList
   end
 
-  @type options :: [GenServer.option() | {:config, Config.t()}]
+  @type options :: [GenServer.option() | {:config, Config.t()}, ...]
 
   alias FunnelSMTP.Mail
   alias Funnel.Client

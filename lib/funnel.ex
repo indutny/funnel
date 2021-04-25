@@ -2,7 +2,7 @@ defmodule Funnel do
   @type full_cipher() :: {atom(), atom(), atom(), atom()}
   @type cipher() :: {atom(), atom(), atom()}
 
-  @spec get_ciphers() :: [full_cipher() | cipher()]
+  @spec get_ciphers() :: [full_cipher() | cipher(), ...]
   def get_ciphers() do
     [
       {:ecdhe_ecdsa, :chacha20_poly1305, :aead, :sha256},
@@ -24,5 +24,10 @@ defmodule Funnel do
       {:any, :aes_256_gcm, :aead, :sha384},
       {:any, :aes_128_gcm, :aead, :sha256}
     ]
+  end
+
+  @spec get_cacerts() :: [binary(), ...]
+  def get_cacerts() do
+    :certifi.cacerts()
   end
 end

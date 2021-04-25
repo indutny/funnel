@@ -10,3 +10,4 @@
 - SMTP Service Extension for 8-bit MIME Transport - https://tools.ietf.org/html/rfc6152
 - STARTTLS - https://tools.ietf.org/html/rfc3207
 - SMTP Service Extension for Command Pipelining - https://tools.ietf.org/html/rfc2920
+- SMTP MTA Strict Transport Security (MTA-STS) - https://tools.ietf.org/html/rfc8461

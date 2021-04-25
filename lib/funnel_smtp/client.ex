@@ -78,7 +78,7 @@ defmodule FunnelSMTP.Client do
         {:reply, :ok, {config, remote}}
 
       error ->
-        {:stop, :error, error, {config, remote}}
+        {:stop, error, {config, remote}}
     end
   end
 

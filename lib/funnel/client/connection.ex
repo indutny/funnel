@@ -82,10 +82,10 @@ defmodule Funnel.Client.Connection do
           [
             ssl_opts
             | [
-                verify_fun: {
-                  &:ssl_verify_hostname.verify_fun/3,
-                  [{:check_hostname, host}]
-                },
+                log_level: :all,
+                depth: 100,
+                cacerts: Funnel.get_cacerts(),
+                # TODO(indutny): do I need partial_chain here?
                 verify: :verify_peer
               ]
           ]
