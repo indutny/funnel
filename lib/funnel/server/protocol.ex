@@ -27,8 +27,8 @@ defmodule Funnel.Server.Protocol do
     field :ssl_opts, :ranch_ssl.opts(), enforce: true
   end
 
-  @spec start_link(reference(), transport(), Config.t()) :: {:ok, pid()}
-  def start_link(ref, transport, config) do
+  @spec start_link(reference(), any(), transport(), Config.t()) :: {:ok, pid()}
+  def start_link(ref, _socket, transport, config) do
     Task.start_link(Funnel.Server.Protocol, :accept, [ref, transport, config])
   end
 

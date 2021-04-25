@@ -22,17 +22,20 @@ defmodule Funnel.MixProject do
 
   defp deps do
     [
-      {:dialyxir, "~> 1.0", only: [:dev], runtime: false},
+      {:dialyxir, "~> 1.1", only: [:dev], runtime: false},
       {:typed_struct, "~> 0.2.1"},
-      {:ecto_sql, "~> 3.0"},
+      {:ecto_sql, "~> 3.6"},
       {:ecto_sqlite3, "~> 0.5.5"},
       # TODO(indutny): use to limit concurrency when reaching out to external
       # servers.
-      {:poolboy, "~> 1.5.1"},
+      {:poolboy, "~> 1.5"},
       {:ssl_verify_fun, "~> 1.1"},
       # TODO(indutny): use this for better TCP server performance.
-      {:ranch, "~> 2.0"},
-      {:certifi, "~> 2.6"}
+      {:ranch, "~> 1.7"},
+      {:certifi, "~> 2.6"},
+      {:plug_cowboy, "~> 2.5"},
+      {:jason, "~> 1.2"},
+      {:hackney, "~> 1.17"}
     ]
   end
 

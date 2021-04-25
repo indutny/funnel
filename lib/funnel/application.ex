@@ -3,8 +3,9 @@ defmodule Funnel.Application do
 
   use Application
 
-  alias Funnel.Server
+  alias Funnel.Challenge
   alias Funnel.MailScheduler
+  alias Funnel.Server
 
   @impl true
   def start(_type, _args) do
@@ -17,9 +18,16 @@ defmodule Funnel.Application do
       mail_scheduler: {MailScheduler, MailScheduler}
     }
 
+    http_port = Application.fetch_env!(:funnel, :http_port)
+
+    challenge_opts = %Challenge.Options{
+      hcaptcha_secret: Application.fetch_env!(:funnel, :hcaptcha_secret)
+    }
+
     children = [
       {Funnel.Repo, []},
       {MailScheduler, name: MailScheduler},
+      {Plug.Cowboy, scheme: :http, plug: {Challenge, challenge_opts}, options: [port: http_port]},
       {Server, server_config}
     ]
 
