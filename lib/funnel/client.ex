@@ -113,6 +113,7 @@ defmodule Funnel.Client do
         {:error, :empty}
 
       results ->
+        # TODO(indutny): sort by priority and select the primary server
         {_priority, name} = Enum.random(results)
         {:ok, List.to_string(name)}
     end
