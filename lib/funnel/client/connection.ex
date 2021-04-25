@@ -55,15 +55,19 @@ defmodule Funnel.Client.Connection do
     {:ok, resolved} = apply(lookup_fun, lookup_args ++ [config.host])
     host = String.to_charlist(resolved)
 
-    opts = [
-      :binary,
+    common_opts = [
       packet: :line,
       packet_size: config.max_line_size,
       active: false
     ]
 
+    opts =
+      [
+        :binary
+      ] ++ common_opts
+
     ssl_opts =
-      opts ++
+      common_opts ++
         [
           # TLS configuration
           versions: [:"tlsv1.2", :"tlsv1.3"],
