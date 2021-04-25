@@ -178,7 +178,11 @@ defmodule FunnelSMTPServerTest do
     handshake!(conn)
 
     assert send_line(conn, "MAIL FROM:<disallowed@sender>") ==
-             {:normal, 450, "Please solve the challenge to proceed"}
+             {:normal, 553,
+              [
+                "Please solve the challenge to proceed",
+                "https://example.com"
+              ]}
 
     # But allow empty reverse path
     assert send_line(conn, "MAIL FROM:<>") == @ok
