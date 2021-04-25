@@ -82,7 +82,6 @@ defmodule Funnel.Client.Connection do
           [
             ssl_opts
             | [
-                log_level: :all,
                 depth: 100,
                 cacerts: Funnel.get_cacerts(),
                 # TODO(indutny): do I need partial_chain here?
