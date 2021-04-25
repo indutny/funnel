@@ -17,6 +17,11 @@ defmodule FunnelSMTP.Connection do
     implementation.send(server, line)
   end
 
+  @spec send!(impl(), String.t()) :: :ok
+  def send!({implementation, server}, line) do
+    :ok = implementation.send(server, line)
+  end
+
   @spec recv_line(impl()) :: {:ok, String.t()} | {:error, any()}
   def recv_line({implementation, server}) do
     implementation.recv_line(server)

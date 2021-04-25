@@ -17,7 +17,10 @@ defmodule FunnelSMTP.Client do
 
     typedstruct do
       field :local_domain, String.t(), enforce: true
+
+      # TODO(indutny): separate state struct
       field :extensions, [FunnelSMTP.extension()], default: []
+      field :mode, :secure | :insecure, default: :insecure
     end
 
     @spec supports_8bit?(t()) :: boolean()
@@ -44,17 +47,17 @@ defmodule FunnelSMTP.Client do
     GenServer.start_link(__MODULE__, {config, remote}, opts)
   end
 
-  @spec handshake(t()) :: :ok | {:error, String.t()}
+  @spec handshake(t()) :: :ok | {:error, any()}
   def handshake(server) do
     GenServer.call(server, :handshake)
   end
 
-  @spec send(t(), Mail.t()) :: :ok | {:error, String.t()}
+  @spec send(t(), Mail.t()) :: :ok | {:error, any()}
   def send(server, mail) do
     GenServer.call(server, {:send, mail})
   end
 
-  @spec quit(t()) :: :ok | {:error, String.t()}
+  @spec quit(t()) :: :ok | {:error, any()}
   def quit(server) do
     GenServer.call(server, :quit)
   end
@@ -70,32 +73,12 @@ defmodule FunnelSMTP.Client do
   def handle_call(:handshake, _from, {config, remote}) do
     {:ok, 220, _} = receive_response(remote)
 
-    Connection.send(remote, "EHLO #{config.local_domain}\r\n")
+    case do_handshake(config, remote) do
+      {:ok, config} ->
+        {:reply, :ok, {config, remote}}
 
-    extensions =
-      case receive_response(remote) do
-        {:ok, 250, [_greeting | lines]} ->
-          lines
-
-        {:ok, _, _} ->
-          Connection.send(remote, "HELO #{config.local_domain}\r\n")
-          {:ok, 250, _} = receive_response(remote)
-
-          # No extensions
-          []
-
-        err ->
-          err
-      end
-
-    extensions = Enum.map(extensions, &FunnelSMTP.parse_extension/1)
-
-    config = %Config{config | extensions: extensions}
-
-    if Config.supports_starttls?(config) do
-      {:reply, :ok, {config, remote}}
-    else
-      {:reply, {:error, "STARTTLS is not supported"}, {config, remote}}
+      error ->
+        {:stop, :error, error, {config, remote}}
     end
   end
 
@@ -112,7 +95,7 @@ defmodule FunnelSMTP.Client do
 
   @impl true
   def handle_call(:quit, _from, s = {_config, remote}) do
-    Connection.send(remote, "QUIT\r\n")
+    Connection.send!(remote, "QUIT\r\n")
     {:ok, 221, _} = receive_response(remote)
 
     {:reply, Connection.close(remote), s}
@@ -121,7 +104,7 @@ defmodule FunnelSMTP.Client do
   # Private helpers
 
   @spec receive_response(Connection.t()) ::
-          {:ok, non_neg_integer(), [String.t()]} | {:error, String.t()}
+          {:ok, non_neg_integer(), [String.t()]} | {:error, any()}
   defp receive_response(remote) do
     with {:ok, line} <- Connection.recv_line(remote),
          {:ok, {code, message, order}} <- FunnelSMTP.parse_response(line) do
@@ -144,7 +127,7 @@ defmodule FunnelSMTP.Client do
   end
 
   @spec do_send_mail({Config.t(), Connection.t()}, Mail.t()) ::
-          :ok | {:error, String.t()}
+          :ok | {:error, any()}
   defp do_send_mail({config, remote}, mail) do
     {from, _params} = mail.reverse
 
@@ -157,26 +140,85 @@ defmodule FunnelSMTP.Client do
         from
       end
 
-    Connection.send(remote, from <> "\r\n")
+    Connection.send!(remote, from <> "\r\n")
     {:ok, 250, _} = receive_response(remote)
 
     for {to, _params} <- mail.forward do
-      Connection.send(remote, "RCPT TO:<#{to}>\r\n")
+      Connection.send!(remote, "RCPT TO:<#{to}>\r\n")
       {:ok, 250, _} = receive_response(remote)
     end
 
-    Connection.send(remote, "DATA\r\n")
+    Connection.send!(remote, "DATA\r\n")
     {:ok, 354, _} = receive_response(remote)
 
     # NOTE: We validate that each line in `mail.data` is at most 1000 bytes
     # long (inluding trailing CRLF) in server.ex
-    Connection.send(remote, mail.data)
+    Connection.send!(remote, mail.data)
 
     # NOTE: Splitted in two to make tests happy.
-    Connection.send(remote, "\r\n")
-    Connection.send(remote, ".\r\n")
+    Connection.send!(remote, "\r\n")
+    Connection.send!(remote, ".\r\n")
     {:ok, 250, _} = receive_response(remote)
 
     :ok
+  end
+
+  @spec starttls(Config.t(), Connection.t()) :: {:ok, Config.t()} | {:error, any()}
+  defp starttls(config, remote) do
+    Connection.send!(remote, "STARTTLS\r\n")
+
+    case receive_response(remote) do
+      {:ok, 220, _} ->
+        with :ok <- Connection.starttls(remote) do
+          config = %Config{config | mode: :secure}
+          do_handshake(config, remote)
+        end
+
+      {:ok, code, reason} ->
+        {:error, {:starttls_failure, code, reason}}
+    end
+  end
+
+  @spec do_handshake(Config.t(), Connection.t()) :: {:ok, Config.t()} | {:error, any()}
+  defp do_handshake(config, remote) do
+    Connection.send!(remote, "EHLO #{config.local_domain}\r\n")
+
+    extensions =
+      case receive_response(remote) do
+        {:ok, 250, [_greeting | lines]} ->
+          lines
+
+        {:ok, _, _} ->
+          Connection.send!(remote, "HELO #{config.local_domain}\r\n")
+          {:ok, 250, _} = receive_response(remote)
+
+          # No extensions
+          []
+
+        err ->
+          err
+      end
+
+    extensions = Enum.map(extensions, &FunnelSMTP.parse_extension/1)
+
+    config = %Config{config | extensions: extensions}
+
+    if Config.supports_starttls?(config) do
+      case config.mode do
+        :secure ->
+          {:error, :starttls_after_handshake}
+
+        :insecure ->
+          starttls(config, remote)
+      end
+    else
+      case config.mode do
+        :secure ->
+          {:ok, config}
+
+        :insecure ->
+          {:error, :starttls_not_supported}
+      end
+    end
   end
 end

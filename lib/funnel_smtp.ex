@@ -126,7 +126,7 @@ defmodule FunnelSMTP do
       iex> FunnelSMTP.parse_response("not response\r\n")
       {:error, "Invalid response line"}
   """
-  @spec parse_response(String.t()) :: {:ok, response()} | {:error, String.t()}
+  @spec parse_response(String.t()) :: {:ok, response()} | {:error, any()}
   def parse_response(line) do
     case Regex.run(~r/^([2-5]\d\d)?(?:([-\s])\s*(.*?))?(?:\r\n|\n)$/, line) do
       nil ->
@@ -169,7 +169,7 @@ defmodule FunnelSMTP do
       iex> FunnelSMTP.parse_extension("SIZE -100")
       {:error, "Invalid parameter of SIZE extension"}
   """
-  @spec parse_extension(String.t()) :: extension() | {:error, String.t()}
+  @spec parse_extension(String.t()) :: extension() | {:error, any()}
   def parse_extension(ext) do
     ext
     |> String.upcase()
@@ -178,7 +178,7 @@ defmodule FunnelSMTP do
   end
 
   @spec parse_extension_parts([String.t()]) ::
-          extension() | {:error, String.t()}
+          extension() | {:error, any()}
   defp parse_extension_parts(["8BITMIME" | _]) do
     :mime8bit
   end
@@ -276,7 +276,7 @@ defmodule FunnelSMTP do
       {:error, "Postmaster can't be the reverse-path"}
   """
   @spec parse_mail_path(String.t(), :mail | :rcpt) ::
-          {:ok, mail_path()} | {:error, String.t()}
+          {:ok, mail_path()} | {:error, any()}
   def parse_mail_path(path, side) do
     cond do
       path =~ ~r/^<postmaster>$/i ->
@@ -343,7 +343,7 @@ defmodule FunnelSMTP do
       {:error, "Invalid mail parameter"}
   """
   @spec parse_mail_params(String.t(), :mail | :rcpt) ::
-          {:ok, map()} | {:error, String.t() | :unknown_param}
+          {:ok, map()} | {:error, any() | :unknown_param}
   def parse_mail_params(params, side) do
     params
     # XXX(indutny): this is too lenient
@@ -375,7 +375,7 @@ defmodule FunnelSMTP do
       iex> FunnelSMTP.parse_xtext("=")
       {:error, "Invalid xtext"}
   """
-  @spec parse_xtext(String.t()) :: {:ok, String.t()} | {:error, String.t()}
+  @spec parse_xtext(String.t()) :: {:ok, String.t()} | {:error, any()}
   def parse_xtext(value) do
     pattern = ~r/^([\x21-\x2a\x2c-\x3c\x3e-\x7f]|\+[0-9A-F]{2})*$/
 

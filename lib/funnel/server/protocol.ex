@@ -23,6 +23,7 @@ defmodule Funnel.Server.Protocol do
 
     field :mail_scheduler, MailScheduler.impl(), enforce: true
 
+    # TODO(indutny): separate state struct
     field :ssl_opts, :ranch_ssl.opts(), enforce: true
   end
 

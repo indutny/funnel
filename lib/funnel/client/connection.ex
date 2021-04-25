@@ -12,7 +12,7 @@ defmodule Funnel.Client.Connection do
     GenServer.start_link(__MODULE__, :ok, opts)
   end
 
-  @spec connect(t(), config()) :: :ok | {:error, atom()}
+  @spec connect(t(), config()) :: :ok | {:error, any()}
   def connect(server, config) do
     GenServer.call(server, {:connect, config})
   end
@@ -97,7 +97,7 @@ defmodule Funnel.Client.Connection do
 
   @impl true
   def handle_call(:starttls, _from, {config, ssl_opts, :gen_tcp, socket}) do
-    {:ok, secure} = :ssl.handshake(socket, ssl_opts)
+    {:ok, secure} = :ssl.connect(socket, ssl_opts)
     {:reply, :ok, {config, ssl_opts, :ssl, secure}}
   end
 

@@ -9,7 +9,7 @@ defmodule Funnel.Client do
 
   typedstruct module: Config do
     field :host, String.t(), ensure: true
-    field :port, :inet.port_number(), default: 465
+    field :port, :inet.port_number(), default: 587
     field :local_domain, String.t(), default: "funnel.localhost"
 
     # 5 minutes
@@ -24,7 +24,7 @@ defmodule Funnel.Client do
 
     field :insecure, boolean(), default: false
 
-    field :lookup_fun, {(... -> {:ok, String.t()} | {:error, atom()}), [any()]},
+    field :lookup_fun, {(... -> {:ok, String.t()} | {:error, any()}), [any()]},
       default: {&Funnel.Client.lookup/1, []}
   end
 

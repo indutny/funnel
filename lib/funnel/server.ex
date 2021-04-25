@@ -16,8 +16,7 @@ defmodule Funnel.Server do
     field :keyfile, String.t(), enforce: true
     field :certfile, String.t(), enforce: true
     field :dhfile, String.t(), enforce: true
-
-    field :mail_scheduler, MailScheduler.impl()
+    field :mail_scheduler, MailScheduler.impl(), enforce: true
   end
 
   @moduledoc """
@@ -59,7 +58,7 @@ defmodule Funnel.Server do
     {:ok, pid, %{port: port, ref: ref}}
   end
 
-  @spec close(reference()) :: :ok | {:error, atom()}
+  @spec close(reference()) :: :ok | {:error, any()}
   def close(ref) do
     :ranch.stop_listener(ref)
   end

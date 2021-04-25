@@ -45,8 +45,8 @@ defmodule FunnelSMTP.Server do
   @typep line_response ::
            {:no_response, state()}
            | {:response, state(), non_neg_integer(), String.t() | [String.t()]}
-           | {:response, state(), non_neg_integer(), String.t() | [String.t()], Config.t()}
-           | {:starttls, state(), non_neg_integer(), String.t() | [String.t()]}
+           | {:response | :starttls, state(), non_neg_integer(), String.t() | [String.t()],
+              Config.t()}
            | {:shutdown, non_neg_integer(), String.t()}
 
   @max_command_line_size 512
@@ -97,8 +97,8 @@ defmodule FunnelSMTP.Server do
           {:response, new_state, code, response, new_config} ->
             {:reply, {:normal, code, response}, {new_state, new_config}}
 
-          {:starttls, new_state, code, response} ->
-            {:reply, {:starttls, code, response}, {new_state, config}}
+          {:starttls, new_state, code, response, new_config} ->
+            {:reply, {:starttls, code, response}, {new_state, new_config}}
 
           {:shutdown, code, response} ->
             {:reply, {:shutdown, code, response}, {:shutdown, config}}
@@ -180,8 +180,8 @@ defmodule FunnelSMTP.Server do
     {:response, :main, 250, [greeting] ++ extensions, %Config{config | remote_domain: domain}}
   end
 
-  defp handle_line(_, :main, {:starttls, "", _}) do
-    {:starttls, :handshake, 220, "Go ahead"}
+  defp handle_line(config = %{mode: :insecure}, :main, {:starttls, "", _}) do
+    {:starttls, :handshake, 220, "Go ahead", %Config{config | mode: :secure}}
   end
 
   defp handle_line(_, :main, {:vrfy, _, _}) do
