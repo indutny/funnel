@@ -72,7 +72,8 @@ defmodule Funnel.Client do
       local_domain: config.local_domain
     }
 
-    {:ok, conn} = Connection.connect(config)
+    {:ok, conn} = Connection.start_link()
+    :ok = Connection.connect(conn, config)
     conn = {Funnel.Client.Connection, conn}
 
     {:ok, smtp} = SMTPClient.start_link(smtp_config, conn)

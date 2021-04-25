@@ -13,7 +13,8 @@ defmodule Funnel.Application do
       port: Application.fetch_env!(:funnel, :port),
       certfile: Application.fetch_env!(:funnel, :certfile),
       dhfile: Application.fetch_env!(:funnel, :dhfile),
-      keyfile: Application.fetch_env!(:funnel, :keyfile)
+      keyfile: Application.fetch_env!(:funnel, :keyfile),
+      mail_scheduler: {MailScheduler, MailScheduler}
     }
 
     children = [

@@ -15,6 +15,10 @@ defmodule FunnelTest.MockServer do
     GenServer.call(__MODULE__, :accept)
   end
 
+  def starttls() do
+    GenServer.call(__MODULE__, :starttls)
+  end
+
   def recv_line() do
     GenServer.call(__MODULE__, :recv_line)
   end
@@ -28,7 +32,33 @@ defmodule FunnelTest.MockServer do
   @impl true
   def init(:ok) do
     {:ok, socket} =
-      :ssl.listen(0, [
+      :gen_tcp.listen(0, [
+        :binary,
+        packet: :line,
+        packet_size: @max_line_size,
+        active: false
+      ])
+
+    {:ok, {:listen, socket}}
+  end
+
+  @impl true
+  def handle_call(:get_port, _from, state = {:listen, socket}) do
+    {:ok, {_, actual_port}} = :inet.sockname(socket)
+    {:reply, actual_port, state}
+  end
+
+  @impl true
+  def handle_call(:accept, _from, {:listen, socket}) do
+    {:ok, accepted} = :gen_tcp.accept(socket)
+    :ok = :gen_tcp.close(socket)
+    {:reply, :ok, {:accepted, :gen_tcp, accepted}}
+  end
+
+  @impl true
+  def handle_call(:starttls, _from, {:accepted, :gen_tcp, socket}) do
+    {:ok, secure} =
+      :ssl.handshake(socket, [
         :binary,
         packet: :line,
         packet_size: @max_line_size,
@@ -43,32 +73,19 @@ defmodule FunnelTest.MockServer do
         ciphers: Funnel.get_ciphers()
       ])
 
-    {:ok, {:listen, socket}}
+    {:reply, :ok, {:accepted, :ssl, secure}}
   end
 
   @impl true
-  def handle_call(:get_port, _from, state = {:listen, socket}) do
-    {:ok, {_, actual_port}} = :ssl.sockname(socket)
-    {:reply, actual_port, state}
-  end
-
-  @impl true
-  def handle_call(:accept, _from, {:listen, socket}) do
-    {:ok, accepted} = :ssl.transport_accept(socket)
-    {:ok, secure} = :ssl.handshake(accepted)
-    :ok = :ssl.close(socket)
-    {:reply, :ok, {:accepted, secure}}
-  end
-
-  @impl true
-  def handle_call(:recv_line, _from, state = {:accepted, socket}) do
-    {:ok, line} = :ssl.recv(socket, 0)
+  def handle_call(:recv_line, _from, state = {:accepted, transport, socket}) do
+    {:ok, line} = transport.recv(socket, 0)
     {:reply, line, state}
   end
 
   @impl true
-  def handle_call({:send_line, line}, _from, state = {:accepted, socket}) do
-    :ok = :ssl.send(socket, line <> "\r\n")
+  def handle_call({:send_line, line}, _from, state) do
+    {:accepted, transport, socket} = state
+    :ok = transport.send(socket, line <> "\r\n")
     {:reply, :ok, state}
   end
 end

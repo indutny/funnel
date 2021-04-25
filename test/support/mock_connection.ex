@@ -13,6 +13,11 @@ defmodule FunnelSMTPTest.MockConnection do
   # Connection implementation
 
   @impl true
+  def starttls(server) do
+    GenServer.call(server, :starttls)
+  end
+
+  @impl true
   def send(server, line) do
     GenServer.call(server, {:send, line})
   end
@@ -37,6 +42,12 @@ defmodule FunnelSMTPTest.MockConnection do
        remote: remote,
        responses: [Server.handshake(remote)]
      }}
+  end
+
+  @impl true
+  def handle_call(:starttls, _from, state) do
+    # TODO(indutny): log it somewhere
+    {:reply, :ok, state}
   end
 
   @impl true

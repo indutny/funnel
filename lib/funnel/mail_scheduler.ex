@@ -16,7 +16,7 @@ defmodule Funnel.MailScheduler do
   alias FunnelSMTP.Mail
   alias Funnel.Client
 
-  @spec start_link(options) :: GenServer.on_start()
+  @spec start_link(options()) :: GenServer.on_start()
   def start_link(opts \\ []) do
     config = Keyword.get(opts, :config, %Config{})
     GenServer.start_link(__MODULE__, config, opts)

@@ -4,6 +4,9 @@ defmodule Funnel.Server do
 
   require Logger
 
+  alias Funnel.Server.Protocol
+  alias FunnelSMTP.MailScheduler
+
   typedstruct module: Config do
     field :local_domain, String.t(), default: "funnel.localhost"
     field :max_mail_size, non_neg_integer(), default: 30 * 1024 * 1024
@@ -13,9 +16,9 @@ defmodule Funnel.Server do
     field :keyfile, String.t(), enforce: true
     field :certfile, String.t(), enforce: true
     field :dhfile, String.t(), enforce: true
-  end
 
-  alias Funnel.Server.Protocol
+    field :mail_scheduler, MailScheduler.impl()
+  end
 
   @moduledoc """
   Server implementation.
@@ -43,6 +46,7 @@ defmodule Funnel.Server do
       local_domain: config.local_domain,
       max_mail_size: config.max_mail_size,
       read_timeout: config.read_timeout,
+      mail_scheduler: config.mail_scheduler,
       ssl_opts: ssl_opts
     }
 
@@ -52,6 +56,11 @@ defmodule Funnel.Server do
 
     Logger.info("Accepting connections on " <> "#{:inet.ntoa(addr)}:#{port}")
 
-    {:ok, pid, %{port: port}}
+    {:ok, pid, %{port: port, ref: ref}}
+  end
+
+  @spec close(reference()) :: :ok | {:error, atom()}
+  def close(ref) do
+    :ranch.stop_listener(ref)
   end
 end

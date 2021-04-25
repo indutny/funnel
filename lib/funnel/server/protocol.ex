@@ -8,6 +8,9 @@ defmodule Funnel.Server.Protocol do
 
   require Logger
 
+  alias FunnelSMTP.Server, as: SMTPServer
+  alias FunnelSMTP.MailScheduler
+
   typedstruct module: Config do
     field :transport, module()
     field :remote, :ranch_transport.socket()
@@ -18,10 +21,10 @@ defmodule Funnel.Server.Protocol do
 
     field :max_buffer_size, non_neg_integer(), default: 1024
 
+    field :mail_scheduler, MailScheduler.impl(), enforce: true
+
     field :ssl_opts, :ranch_ssl.opts(), enforce: true
   end
-
-  alias FunnelSMTP.Server, as: SMTPServer
 
   @spec start_link(reference(), transport(), Config.t()) :: {:ok, pid()}
   def start_link(ref, transport, config) do
@@ -45,7 +48,7 @@ defmodule Funnel.Server.Protocol do
         remote_domain: List.to_string(remote_domain),
         remote_addr: List.to_string(:inet.ntoa(remote_ip)),
         max_mail_size: config.max_mail_size,
-        mail_scheduler: {Funnel.MailScheduler, Funnel.MailScheduler}
+        mail_scheduler: config.mail_scheduler
       })
 
     config = %Config{config | transport: transport, remote: remote}
@@ -87,8 +90,8 @@ defmodule Funnel.Server.Protocol do
   end
 
   @spec send_response(Config.t(), SMTPServer.response()) :: Config.t()
-  defp send_response(_config, :no_response) do
-    # no-op
+  defp send_response(config, :no_response) do
+    config
   end
 
   defp send_response(config, {mode, code, line}) when is_bitstring(line) do
