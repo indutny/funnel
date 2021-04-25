@@ -90,32 +90,36 @@ defmodule FunnelSMTP.Server do
       )
     end
 
-    case parse_line(state, line) do
-      {:ok, line} ->
-        if Logger.enabled?(self()) do
-          Logger.debug("[server] #{config.remote_domain} > #{inspect(line)}")
-        end
+    response =
+      case parse_line(state, line) do
+        {:ok, line} ->
+          case handle_line(config, state, line) do
+            {:no_response, new_state} ->
+              {:reply, :no_response, {new_state, config}}
 
-        case handle_line(config, state, line) do
-          {:no_response, new_state} ->
-            {:reply, :no_response, {new_state, config}}
+            {:response, new_state, code, response} ->
+              {:reply, {:normal, code, response}, {new_state, config}}
 
-          {:response, new_state, code, response} ->
-            {:reply, {:normal, code, response}, {new_state, config}}
+            {:response, new_state, code, response, new_config} ->
+              {:reply, {:normal, code, response}, {new_state, new_config}}
 
-          {:response, new_state, code, response, new_config} ->
-            {:reply, {:normal, code, response}, {new_state, new_config}}
+            {:starttls, new_state, code, response, new_config} ->
+              {:reply, {:starttls, code, response}, {new_state, new_config}}
 
-          {:starttls, new_state, code, response, new_config} ->
-            {:reply, {:starttls, code, response}, {new_state, new_config}}
+            {:shutdown, code, response} ->
+              {:reply, {:shutdown, code, response}, {:shutdown, config}}
+          end
 
-          {:shutdown, code, response} ->
-            {:reply, {:shutdown, code, response}, {:shutdown, config}}
-        end
+        {:error, code, response} ->
+          {:reply, {:shutdown, code, response}, {:shutdown, config}}
+      end
 
-      {:error, code, response} ->
-        {:reply, {:shutdown, code, response}, {:shutdown, config}}
+    with true <- Logger.enabled?(self()),
+         {_, response, _} <- response do
+      Logger.debug("[server] #{config.remote_domain} > #{inspect(response)}")
     end
+
+    response
   end
 
   @spec parse_line(state(), line()) ::
