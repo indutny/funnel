@@ -178,7 +178,7 @@ defmodule FunnelSMTPServerTest do
     handshake!(conn)
 
     assert send_line(conn, "MAIL FROM:<disallowed@sender>") ==
-             {:normal, 553,
+             {:normal, 550,
               [
                 "Please solve the challenge to proceed",
                 "https://example.com"
