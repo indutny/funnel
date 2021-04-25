@@ -86,7 +86,7 @@ defmodule Funnel.Client do
   @impl true
   def handle_call(:close, _from, {:connected, config, smtp}) do
     :ok = SMTPClient.quit(smtp)
-    {:stop, :closed, :ok, {:not_connected, config}}
+    {:stop, :normal, :ok, {:not_connected, config}}
   end
 
   @impl true

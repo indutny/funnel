@@ -116,6 +116,6 @@ defmodule Funnel.Client.Connection do
 
   @impl true
   def handle_call(:close, _from, {_, _, transport, socket}) do
-    {:stop, :closed, transport.close(socket), :not_connected}
+    {:stop, :normal, transport.close(socket), :not_connected}
   end
 end
