@@ -83,10 +83,19 @@ defmodule FunnelSMTP.Server do
 
   @impl true
   def handle_call({:line, line}, _from, {state, config}) do
-    Logger.debug("#{config.remote_domain} < #{String.trim_trailing(line)}")
+    if Logger.enabled?(self()) do
+      Logger.debug(
+        "[server] #{config.remote_domain} " <>
+          "< #{String.trim_trailing(line)}"
+      )
+    end
 
     case parse_line(state, line) do
       {:ok, line} ->
+        if Logger.enabled?(self()) do
+          Logger.debug("[server] #{config.remote_domain} > #{inspect(line)}")
+        end
+
         case handle_line(config, state, line) do
           {:no_response, new_state} ->
             {:reply, :no_response, {new_state, config}}

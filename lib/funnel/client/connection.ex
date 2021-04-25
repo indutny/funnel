@@ -2,6 +2,8 @@ defmodule Funnel.Client.Connection do
   use TypedStruct
   use GenServer
 
+  require Logger
+
   @type config() :: Funnel.Client.Config.t()
   @type t() :: FunnelSMTP.Connection.t()
 
@@ -100,22 +102,38 @@ defmodule Funnel.Client.Connection do
 
   @impl true
   def handle_call(:starttls, _from, {config, ssl_opts, :gen_tcp, socket}) do
+    Logger.debug("[client] #{config.host} - STARTTLS")
+
     {:ok, secure} = :ssl.connect(socket, ssl_opts)
     {:reply, :ok, {config, ssl_opts, :ssl, secure}}
   end
 
   @impl true
-  def handle_call({:send, line}, _from, state = {_, _, transport, socket}) do
+  def handle_call({:send, line}, _from, state) do
+    {config, _, transport, socket} = state
+
+    if Logger.enabled?(self()) do
+      Logger.debug("[client] #{config.host} > #{String.trim_trailing(line)}")
+    end
+
     {:reply, transport.send(socket, line), state}
   end
 
   @impl true
   def handle_call(:recv_line, _from, state = {config, _, transport, socket}) do
-    {:reply, transport.recv(socket, 0, config.read_timeout), state}
+    line = transport.recv(socket, 0, config.read_timeout)
+
+    with true <- Logger.enabled?(self()),
+         {:ok, line} <- line do
+      Logger.debug("[client] #{config.host} < #{String.trim_trailing(line)}")
+    end
+
+    {:reply, line, state}
   end
 
   @impl true
-  def handle_call(:close, _from, {_, _, transport, socket}) do
+  def handle_call(:close, _from, {config, _, transport, socket}) do
+    Logger.debug("[client] #{config.host} - CLOSE")
     {:stop, :normal, transport.close(socket), :not_connected}
   end
 end
