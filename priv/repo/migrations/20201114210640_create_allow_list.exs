@@ -7,5 +7,7 @@ defmodule Funnel.Repo.Migrations.CreateAllowList do
       add :domain, :string
       add :created_at, :utc_datetime
     end
+
+    create unique_index("allow_list", [:user, :domain])
   end
 end

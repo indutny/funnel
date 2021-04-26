@@ -18,6 +18,7 @@ defmodule FunnelSMTP.Server do
     field :local_addr, String.t()
     field :remote_domain, String.t()
     field :remote_addr, String.t()
+    field :challenge_url, String.t()
     field :max_anonymous_mail_size, non_neg_integer(), default: 1024
     field :max_mail_size, non_neg_integer()
     field :mail_scheduler, MailScheduler.impl()
@@ -218,9 +219,8 @@ defmodule FunnelSMTP.Server do
             {:response, :main, 552, "Mail exceeds maximum allowed size"}
 
           {:error, :access_denied} ->
-            # TODO(indutny): write the challenge
-            {:response, :main, 550,
-             ["Please solve the challenge to proceed", "https://example.com"]}
+            challenge_url = "#{config.challenge_url}?source=#{reverse_path}"
+            {:response, :main, 550, "Please solve a challenge to proceed: #{challenge_url}"}
         end
 
       {:error, :unknown_param} ->

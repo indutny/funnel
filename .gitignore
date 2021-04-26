@@ -19,8 +19,12 @@ erl_crash.dump
 # Also ignore archive artifacts (built via "mix archive.build").
 *.ez
 
+# Temporary files for e.g. tests
+/tmp
+
+# Database
 /priv/database/
 !/priv/database/.gitkeep
 
-# Temporary files for e.g. tests
-/tmp
+# Sensitive data
+/config/prod.exs

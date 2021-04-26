@@ -31,6 +31,7 @@ defmodule FunnelSMTPServerTest do
            local_addr: "1.2.3.4",
            remote_domain: "remote.example",
            remote_addr: "4.3.2.1",
+           challenge_url: "https://funnel.example/",
            max_mail_size: @max_mail_size,
            max_anonymous_mail_size: @max_anonymous_mail_size,
            mail_scheduler: {MockScheduler, scheduler}
@@ -179,10 +180,8 @@ defmodule FunnelSMTPServerTest do
 
     assert send_line(conn, "MAIL FROM:<disallowed@sender>") ==
              {:normal, 550,
-              [
-                "Please solve the challenge to proceed",
-                "https://example.com"
-              ]}
+              "Please solve a challenge to proceed: " <>
+                "https://funnel.example/?source=disallowed@sender"}
 
     # But allow empty reverse path
     assert send_line(conn, "MAIL FROM:<>") == @ok

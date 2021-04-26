@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+
+    <title>Spam-prevention Challenge</title>
+
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      #app {
+        max-width: 640px;
+        margin: 16px auto 0 auto;
+
+        font-size: 24px;
+        font-family: Palatino;
+        text-align: center;
+      }
+
+      header, .h-captcha {
+        margin-bottom: 16px;
+      }
+    </style>
+
+    <script src="https://hcaptcha.com/1/api.js" async defer></script>
+  </head>
+  <body>
+    <!--
+      Hey! Thanks for checking the source.
+      It is a bit ugly, but at least it is a single file.
+    -->
+
+    <div id="app">
+      <header>
+        Receiving an email is a pleasant surprise, unless it is a <i>spam</i>.
+        <br/>
+        Please solve a little challenge below in order to continue with sending
+        messages.
+      </header>
+
+      <div
+        class="h-captcha"
+        data-sitekey="<%= sitekey %>"
+        data-callback="onChallenge">
+      </div>
+
+      <section id="sender-info">
+        Your email is:
+        <b id="source"/>
+      </section>
+    </div>
+
+    <script>
+      const source = new URLSearchParams(window.location.search).get('source');
+      document.getElementById('source').innerText = source;
+
+      async function onChallenge(response) {
+        const res = await fetch('/challenge', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ response, source })
+        });
+        const json = await res.json();
+
+        const info = document.getElementById('app');
+        if (json.ok) {
+          info.innerText = [
+            'Thank you for being a lovely human.',
+            'Please try sending your email to me one more time!',
+            '\u2764\ufe0f'.repeat(3),
+          ].join('\n');
+        } else {
+          info.innerText = [
+            `Server error: ${json.error}.`,
+            'Please try again after refreshing the page.',
+          ].join('\n');
+        }
+      }
+    </script>
+
+  </body>
+</html>

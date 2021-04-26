@@ -17,6 +17,7 @@ defmodule Funnel.Server.Protocol do
 
     field :local_domain, String.t(), enforce: true
     field :max_mail_size, non_neg_integer(), enforce: true
+    field :challenge_url, String.t(), enforce: true
     field :read_timeout, timeout(), enforce: true
 
     field :max_buffer_size, non_neg_integer(), default: 1024
@@ -48,6 +49,7 @@ defmodule Funnel.Server.Protocol do
         local_addr: List.to_string(:inet.ntoa(local_ip)),
         remote_domain: List.to_string(remote_domain),
         remote_addr: List.to_string(:inet.ntoa(remote_ip)),
+        challenge_url: config.challenge_url,
         max_mail_size: config.max_mail_size,
         mail_scheduler: config.mail_scheduler
       })

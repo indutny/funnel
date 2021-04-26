@@ -9,6 +9,7 @@ defmodule Funnel.Server do
 
   typedstruct module: Config do
     field :local_domain, String.t(), default: "funnel.localhost"
+    field :challenge_url, String.t(), default: "https://funnel.localhost/"
     field :max_mail_size, non_neg_integer(), default: 30 * 1024 * 1024
     # 5 minutes
     field :read_timeout, timeout(), default: 5 * 60 * 1000
@@ -43,6 +44,7 @@ defmodule Funnel.Server do
 
     protocol_config = %Protocol.Config{
       local_domain: config.local_domain,
+      challenge_url: config.challenge_url,
       max_mail_size: config.max_mail_size,
       read_timeout: config.read_timeout,
       mail_scheduler: config.mail_scheduler,

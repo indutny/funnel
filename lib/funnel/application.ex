@@ -11,6 +11,7 @@ defmodule Funnel.Application do
   def start(_type, _args) do
     server_config = %Server.Config{
       local_domain: Application.fetch_env!(:funnel, :smtp_domain),
+      challenge_url: Application.fetch_env!(:funnel, :challenge_url),
       port: Application.fetch_env!(:funnel, :port),
       certfile: Application.fetch_env!(:funnel, :certfile),
       dhfile: Application.fetch_env!(:funnel, :dhfile),
@@ -21,7 +22,8 @@ defmodule Funnel.Application do
     http_port = Application.fetch_env!(:funnel, :http_port)
 
     challenge_opts = %Challenge.Options{
-      hcaptcha_secret: Application.fetch_env!(:funnel, :hcaptcha_secret)
+      hcaptcha_secret: Application.fetch_env!(:funnel, :hcaptcha_secret),
+      hcaptcha_sitekey: Application.fetch_env!(:funnel, :hcaptcha_sitekey)
     }
 
     children = [

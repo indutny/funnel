@@ -8,14 +8,15 @@ defmodule Funnel.AllowList do
     case user do
       "*" ->
         {:error, :wildcard_not_allowed}
+
       user ->
         entry = %Funnel.AllowList.Entry{
           user: user,
           domain: domain,
-          created_at: DateTime.utc_now()
+          created_at: DateTime.truncate(DateTime.utc_now(), :second)
         }
 
-        with {:ok, _} <- Funnel.Repo.insert(entry) do
+        with {:ok, _} <- Funnel.Repo.insert(entry, on_conflict: :nothing) do
           :ok
         end
     end
