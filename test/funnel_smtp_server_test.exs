@@ -144,7 +144,7 @@ defmodule FunnelSMTPServerTest do
     assert {:ok, mail} = MockScheduler.pop(scheduler)
     {reverse_path, reverse_ext} = mail.reverse
     assert reverse_ext == %{size: 100}
-    assert reverse_path =~ ~r/RS0=FUN=\d+=sender=allowed@funnel.example/
+    assert reverse_path == "allowed@sender"
 
     assert mail.forward == [
              {"second@rcpt", %{}},
@@ -152,7 +152,7 @@ defmodule FunnelSMTPServerTest do
            ]
 
     check_lines!(mail.data, [
-      ~r/Return-Path: <SRS0=FUN=\d+=sender=allowed@funnel.example>/,
+      "Return-Path: <allowed@sender>",
       "Received: from iam.test (4.3.2.1)",
                  "          by funnel.example (1.2.3.4);",
                  "          16 Feb 1984 07:06:40 +0000",

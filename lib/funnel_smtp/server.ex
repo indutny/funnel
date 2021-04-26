@@ -52,7 +52,6 @@ defmodule FunnelSMTP.Server do
 
   @max_command_line_size 512
   @max_text_line_size 1000
-  @magic_hash "FUN"
 
   # Public API
 
@@ -352,7 +351,6 @@ defmodule FunnelSMTP.Server do
 
       true ->
         mail = Mail.new(reverse_path, params)
-               |> Mail.wrap_srs(@magic_hash, config.local_domain)
         {:ok, mail}
     end
   end

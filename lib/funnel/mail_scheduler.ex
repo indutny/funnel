@@ -9,9 +9,11 @@ defmodule Funnel.MailScheduler do
   typedstruct module: Config do
     field :allow_list, module(), default: Funnel.AllowList
     field :forward_list, module(), default: Funnel.ForwardList
+    field :local_domain, String.t(), default: "funnel.local"
   end
 
   @type options :: [GenServer.option() | {:config, Config.t()}, ...]
+  @magic_hash "FUN"
 
   alias FunnelSMTP.Mail
   alias Funnel.Client
@@ -48,8 +50,11 @@ defmodule Funnel.MailScheduler do
   # MailScheduler implementation
 
   @impl true
-  def schedule(_, mail, trace) do
+  def schedule(server, mail, trace) do
+    local_domain = GenServer.call(server, :get_local_domain)
+
     mail = Mail.add_trace(mail, trace)
+           |> Mail.wrap_srs(@magic_hash, local_domain)
 
     # TODO(indutny): put email into database, and send asynchronously
     # NOTE: Until async send is here - it must be sent outside of GenServer to
@@ -92,5 +97,10 @@ defmodule Funnel.MailScheduler do
   @impl true
   def handle_call({:map_forward_path, email}, _from, config) do
     {:reply, config.forward_list.map(email), config}
+  end
+
+  @impl true
+  def handle_call(:get_local_domain, _from, config) do
+    {:reply, config.local_domain, config}
   end
 end

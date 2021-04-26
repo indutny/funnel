@@ -26,9 +26,14 @@ defmodule Funnel.Application do
       hcaptcha_sitekey: Application.fetch_env!(:funnel, :hcaptcha_sitekey)
     }
 
+    scheduler_config = %MailScheduler.Config{
+      # Needed for SRS rewrite
+      local_domain: server_config.local_domain
+    }
+
     children = [
       {Funnel.Repo, []},
-      {MailScheduler, name: MailScheduler},
+      {MailScheduler, name: MailScheduler, config: scheduler_config},
       {Plug.Cowboy, scheme: :http, plug: {Challenge, challenge_opts}, options: [port: http_port]},
       {Server, server_config}
     ]
