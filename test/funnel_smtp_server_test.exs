@@ -142,24 +142,23 @@ defmodule FunnelSMTPServerTest do
            ]
 
     assert {:ok, mail} = MockScheduler.pop(scheduler)
-    assert mail.reverse == {"allowed@sender", %{size: 100}}
+    {reverse_path, reverse_ext} = mail.reverse
+    assert reverse_ext == %{size: 100}
+    assert reverse_path =~ ~r/RS0=FUN=\d+=sender=allowed@funnel.example/
 
     assert mail.forward == [
              {"second@rcpt", %{}},
              {"allowed@rcpt", %{}}
            ]
 
-    assert mail.data ==
-             Enum.join(
-               [
-                 "Return-Path: <allowed@sender>",
-                 "Received: from iam.test (4.3.2.1)",
+    check_lines!(mail.data, [
+      ~r/Return-Path: <SRS0=FUN=\d+=sender=allowed@funnel.example>/,
+      "Received: from iam.test (4.3.2.1)",
                  "          by funnel.example (1.2.3.4);",
                  "          16 Feb 1984 07:06:40 +0000",
-                 "Hey!\r\nHow are you?\n."
-               ],
-               "\r\n"
-             )
+      "Hey!",
+      "How are you?\n."
+    ])
   end
 
   test "should limit recipient count", %{conn: conn} do
@@ -273,5 +272,16 @@ defmodule FunnelSMTPServerTest do
   def send_lines(conn, lines) do
     lines
     |> Enum.map(&send_line(conn, &1))
+  end
+
+  defp check_lines!(actual, expected) do
+    actual = String.split(actual, "\r\n")
+
+    assert length(actual) == length(expected)
+
+    Enum.zip(actual, expected)
+    |> Enum.all?(fn {actual, expected} ->
+      assert actual =~ expected
+    end)
   end
 end

@@ -151,4 +151,32 @@ defmodule FunnelSMTP.Mail do
 
     %Mail{mail | data: header <> mail.data}
   end
+
+  @doc """
+  Wrap reverse address with SRS.
+
+  ## Examples
+
+      iex> mail = FunnelSMTP.Mail.new("a@b.com")
+      ...> |> FunnelSMTP.Mail.wrap_srs("shrt", "srs.com", timestamp: 42)
+      iex> mail.reverse
+      {"SRS0=shrt=42=b.com=a@srs.com", %{}}
+  """
+  @spec wrap_srs(t(), String.t(), String.t(), list()) :: t()
+  def wrap_srs(mail, shortcut, domain, opts \\ []) do
+    case mail.reverse do
+      {:null, _} ->
+        mail
+      {reverse_path, reverse_params} ->
+        [user, original_domain] = String.split(reverse_path, "@", parts: 2)
+
+        time = Keyword.get(
+          opts, :timestamp, rem(DateTime.to_unix(DateTime.utc_now()), 100))
+        srs_path = "SRS0=#{shortcut}=#{time}=#{original_domain}=" <>
+          "#{user}@#{domain}"
+
+        # TODO(indutny): do we want to keep params?
+        %Mail{mail | reverse: {srs_path, reverse_params}}
+    end
+  end
 end
