@@ -11,3 +11,7 @@
 - STARTTLS - https://tools.ietf.org/html/rfc3207
 - SMTP Service Extension for Command Pipelining - https://tools.ietf.org/html/rfc2920
 - SMTP MTA Strict Transport Security (MTA-STS) - https://tools.ietf.org/html/rfc8461
+- Sender Policy Framework (SPF) - https://tools.ietf.org/html/rfc7208
+- Domain-based Message Authentication, Reporting, and Conformance (DMARC) -
+  https://tools.ietf.org/html/rfc7489
+- Sender Rewriting Scheme (SRS) - https://en.wikipedia.org/wiki/Sender_Rewriting_Scheme
