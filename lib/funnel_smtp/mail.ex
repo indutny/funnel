@@ -135,8 +135,8 @@ defmodule FunnelSMTP.Mail do
   Add tracing information to email.
   """
   @spec add_trace(t(), Trace.t()) :: t()
-  def add_trace(mail, trace) do
-    {reverse_path, _} = mail.reverse
+  def add_trace(mail = %{reverse: {reverse_path, _}}, trace)
+  when is_binary(reverse_path) do
     extended_from = "#{trace.remote_domain} (#{trace.remote_addr})"
     extended_by = "#{trace.local_domain} (#{trace.local_addr})"
 
