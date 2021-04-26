@@ -27,7 +27,7 @@ defmodule Funnel.Challenge do
     |> send_resp(200, landing_page(opts.hcaptcha_sitekey))
   end
 
-  put "/challenge" do
+  put "/" do
     case handle_challenge(opts, conn.body_params) do
       :ok ->
         respond(conn, 200, %{"ok" => true})

@@ -59,7 +59,7 @@
       document.getElementById('source').innerText = source;
 
       async function onChallenge(response) {
-        const res = await fetch('/challenge', {
+        const res = await fetch('', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ response, source })
