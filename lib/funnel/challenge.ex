@@ -43,7 +43,7 @@ defmodule Funnel.Challenge do
 
   # Private
 
-  @spec respond(any(), non_neg_integer(), map()) :: nil
+  @spec respond(Plug.Conn.t(), non_neg_integer(), map()) :: Plug.Conn.t()
   defp respond(conn, code, json) do
     conn
     |> put_resp_content_type("application/json")
