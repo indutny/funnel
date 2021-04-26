@@ -158,9 +158,9 @@ defmodule FunnelSMTP.Mail do
   ## Examples
 
       iex> mail = FunnelSMTP.Mail.new("a@b.com")
-      ...> |> FunnelSMTP.Mail.wrap_srs("shrt", "srs.com", timestamp: 42)
+      ...> |> FunnelSMTP.Mail.wrap_srs("shrt", "srs.com", timestamp: 951)
       iex> mail.reverse
-      {"SRS0=shrt=42=b.com=a@srs.com", %{}}
+      {"SRS0=shrt=TN=b.com=a@srs.com", %{}}
   """
   @spec wrap_srs(t(), String.t(), String.t(), list()) :: t()
   def wrap_srs(mail, shortcut, domain, opts \\ []) do
@@ -170,8 +170,11 @@ defmodule FunnelSMTP.Mail do
       {reverse_path, reverse_params} ->
         [user, original_domain] = String.split(reverse_path, "@", parts: 2)
 
-        time = Keyword.get(
-          opts, :timestamp, rem(DateTime.to_unix(DateTime.utc_now()), 100))
+        time =
+          Keyword.get(
+            opts, :timestamp, rem(DateTime.to_unix(DateTime.utc_now()), 1024))
+          |> Integer.to_string(32)
+
         srs_path = "SRS0=#{shortcut}=#{time}=#{original_domain}=" <>
           "#{user}@#{domain}"
 
