@@ -334,6 +334,7 @@ defmodule FunnelSMTP.Server do
           {:ok, Mail.t()}
           | {:error, :access_denied | :max_size_exceeded}
   defp receive_reverse_path(config, reverse_path, params) do
+    # TODO(indutny): Strip SRS after verifying DKIM
     is_allowed? =
       MailScheduler.allow_reverse_path?(
         config.mail_scheduler,

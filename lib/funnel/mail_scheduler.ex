@@ -12,7 +12,7 @@ defmodule Funnel.MailScheduler do
     field :local_domain, String.t(), default: "funnel.local"
   end
 
-  @type options :: [GenServer.option() | {:config, Config.t()}, ...]
+  @type options :: [GenServer.options() | {:config, Config.t()}]
   @magic_hash "FUN"
 
   alias FunnelSMTP.Mail
