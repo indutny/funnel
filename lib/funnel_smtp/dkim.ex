@@ -57,7 +57,7 @@ defmodule FunnelSMTP.DKIM do
   def handle_call({:sign, mail, signed_headers}, _from, state) do
     [headers, body] = String.split(mail.data, "\r\n\r\n", parts: 2)
 
-    headers = String.split(headers, "\r\n")
+    headers = String.split(headers, ~r/\r\n(?!\s)/)
 
     simple_headers =
       headers
@@ -103,9 +103,10 @@ defmodule FunnelSMTP.DKIM do
     {signature_field, dkim_header} = List.pop_at(dkim_header, -1)
 
     dkim_header = dkim_header ++ ["#{signature_field}#{signature}"]
-    dkim_header = Enum.join(dkim_header, "\r\n")
 
-    mail = %Mail{mail | data: dkim_header <> mail.data}
+    new_data = Enum.join(dkim_header ++ headers ++ ["", body], "\r\n")
+
+    mail = %Mail{mail | data: new_data}
 
     {:reply, {:ok, mail}, state}
   end

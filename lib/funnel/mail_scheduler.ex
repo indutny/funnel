@@ -87,11 +87,13 @@ defmodule Funnel.MailScheduler do
 
   @impl true
   def init(config) do
-    {:ok, dkim} = DKIM.start_link(%DKIM.Config{
-      private_key: config.dkim_private_key,
-      domain: config.local_domain,
-      selector: config.dkim_selector
-    })
+    {:ok, dkim} =
+      DKIM.start_link(%DKIM.Config{
+        private_key: config.dkim_private_key,
+        domain: config.local_domain,
+        selector: config.dkim_selector
+      })
+
     {:ok, {config, dkim}}
   end
 
@@ -113,11 +115,12 @@ defmodule Funnel.MailScheduler do
       Mail.add_trace(mail, trace)
       |> Mail.wrap_srs(@magic_hash, config.local_domain)
 
-    mail = DKIM.sign(dkim, mail, [
-      "date",
-      "subject",
-      "to"
-    ])
+    mail =
+      DKIM.sign(dkim, mail, [
+        "date",
+        "subject",
+        "to"
+      ])
 
     {:reply, mail, state}
   end

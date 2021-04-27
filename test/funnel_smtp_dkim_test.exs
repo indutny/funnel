@@ -48,7 +48,8 @@ defmodule FunnelSMTPDKIMTest do
              " 0H5UwSJQr1JEuNJgJSZL9oBoMnySE781Obyeyq9j63/UV745BJXjVtHCPcHscos9",
              " GNeEl90TsY+7h206eXGIKsxlRHB0bKl+W7FaHcBnefGGM3WkiwA5PcL08sZF3rAs",
              " zuR1L/v+YSNdSTmS7KercNATpaBjNfCdl2NgzhGa6GUd+7fkcXzXj3r0FlBI4SP3",
-             " bZjVL9qigiqZbfmJJp5owQ==Header-1: value-1",
+             " bZjVL9qigiqZbfmJJp5owQ==",
+             "Header-1: value-1",
              "Header-2: value-2",
              "",
              "Body"
@@ -66,8 +67,45 @@ defmodule FunnelSMTPDKIMTest do
              " R+k1+u68yCReTvZ4o85QUM6+txfG/EwlMYyrhMpJPVpZwnDMRHYnV1F4q34UieLi",
              " 9FVm2j3Ncx4Q6ZMvWWGwR21xlmudZaHtvsFqOnzMup4wOavMzMiooLaTIbBEBMdL",
              " FIxkB0oBM38/Li32oaLRvrnY0ZboI+PiegHCZ8VyOZ/daWoKjiwymNGwcXtjYLZZ",
-             " 37QkquJKLDXxtuLcyIQZBA==Header-1: value-1",
+             " 37QkquJKLDXxtuLcyIQZBA==",
+             "Header-1: value-1",
              "Header-2: value-2",
+             "",
+             "Body"
+           ]
+  end
+
+  test "should not fail on folded header", %{dkim: dkim} do
+    mail =
+      Mail.new(
+        "sender@example.com",
+        %{},
+        Enum.join(
+          [
+            "Header-1: value-1",
+            " value-2",
+            "",
+            "Body"
+          ],
+          "\r\n"
+        )
+      )
+
+    assert {:ok, signed} = DKIM.sign(dkim, mail, ["header-1"])
+
+    assert String.split(signed.data, "\r\n") == [
+             "DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple;",
+             "                d=funnel.example; s=static;",
+             "                h=header-1;",
+             "                bh=x/N8/ivRfGMxF56p8/vkrTaHlPadGijHRWz0MB878Wk=",
+             "                b=bozl0C34M7l4oG9Fxd5/wYCyO6miERdddFX/yyYolyFG/53zmHzsxLBEZ1hMW6IN",
+             " yv1yjwSXXsXfnIvBe+/7i1tKTzZyOlL6ksid20IQGbTbc+YiXZpC3KyvHPza8Hgl",
+             " dsZoCCmxkPjQOmq5ihIM3aaE/XM8qyXmuwRYmlhWN15BmrM8uU/eAGOf8gnJyh4N",
+             " 6RLSAlrY7Yom+FuMv1msq1Oh/e9hx0ppfyrHM5szbgHLAf3haYffe5g1+kVrPKe4",
+             " VCPyAEx+c1nEWns0h4IOcapAMrnTNhYrDPWG29Tqqj6XlFv+oWdkXePigIyR7CBG",
+             " lW5nS+ChbYxATzVS/8ntXQ==",
+             "Header-1: value-1",
+             " value-2",
              "",
              "Body"
            ]
