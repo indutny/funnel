@@ -28,7 +28,9 @@ defmodule Funnel.Application do
 
     scheduler_config = %MailScheduler.Config{
       # Needed for SRS rewrite
-      local_domain: server_config.local_domain
+      local_domain: server_config.local_domain,
+      dkim_selector: "static",
+      dkim_private_key: "priv/keys/dkim-private.pem"
     }
 
     children = [

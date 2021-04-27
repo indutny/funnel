@@ -4,12 +4,16 @@ defmodule Funnel.MailScheduler do
 
   require Logger
 
+  alias FunnelSMTP.DKIM
+
   @behaviour FunnelSMTP.MailScheduler
 
   typedstruct module: Config do
     field :allow_list, module(), default: Funnel.AllowList
     field :forward_list, module(), default: Funnel.ForwardList
     field :local_domain, String.t(), default: "funnel.local"
+    field :dkim_selector, String.t(), default: "static"
+    field :dkim_private_key, String.t(), default: "priv/keys/dkim-private.pem"
   end
 
   @type options :: [GenServer.options() | {:config, Config.t()}]
@@ -51,11 +55,7 @@ defmodule Funnel.MailScheduler do
 
   @impl true
   def schedule(server, mail, trace) do
-    local_domain = GenServer.call(server, :get_local_domain)
-
-    mail =
-      Mail.add_trace(mail, trace)
-      |> Mail.wrap_srs(@magic_hash, local_domain)
+    mail = GenServer.call(server, {:sign_and_trace, mail, trace})
 
     # TODO(indutny): put email into database, and send asynchronously
     # NOTE: Until async send is here - it must be sent outside of GenServer to
@@ -87,21 +87,38 @@ defmodule Funnel.MailScheduler do
 
   @impl true
   def init(config) do
-    {:ok, config}
+    {:ok, dkim} = DKIM.start_link(%DKIM.Config{
+      private_key: config.dkim_private_key,
+      domain: config.local_domain,
+      selector: config.dkim_selector
+    })
+    {:ok, {config, dkim}}
   end
 
   @impl true
-  def handle_call({:allow_reverse_path?, email}, _from, config) do
-    {:reply, config.allow_list.contains?(email), config}
+  def handle_call({:allow_reverse_path?, email}, _from, state = {config, _}) do
+    {:reply, config.allow_list.contains?(email), state}
   end
 
   @impl true
-  def handle_call({:map_forward_path, email}, _from, config) do
-    {:reply, config.forward_list.map(email), config}
+  def handle_call({:map_forward_path, email}, _from, state = {config, _}) do
+    {:reply, config.forward_list.map(email), state}
   end
 
   @impl true
-  def handle_call(:get_local_domain, _from, config) do
-    {:reply, config.local_domain, config}
+  def handle_call({:sign_and_trace, mail, trace}, _from, state) do
+    {config, dkim} = state
+
+    mail =
+      Mail.add_trace(mail, trace)
+      |> Mail.wrap_srs(@magic_hash, config.local_domain)
+
+    mail = DKIM.sign(dkim, mail, [
+      "date",
+      "subject",
+      "to"
+    ])
+
+    {:reply, mail, state}
   end
 end
