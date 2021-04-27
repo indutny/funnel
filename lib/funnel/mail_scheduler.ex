@@ -53,8 +53,9 @@ defmodule Funnel.MailScheduler do
   def schedule(server, mail, trace) do
     local_domain = GenServer.call(server, :get_local_domain)
 
-    mail = Mail.add_trace(mail, trace)
-           |> Mail.wrap_srs(@magic_hash, local_domain)
+    mail =
+      Mail.add_trace(mail, trace)
+      |> Mail.wrap_srs(@magic_hash, local_domain)
 
     # TODO(indutny): put email into database, and send asynchronously
     # NOTE: Until async send is here - it must be sent outside of GenServer to

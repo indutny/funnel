@@ -154,8 +154,8 @@ defmodule FunnelSMTPServerTest do
     check_lines!(mail.data, [
       "Return-Path: <allowed@sender>",
       "Received: from iam.test (4.3.2.1)",
-                 "          by funnel.example (1.2.3.4);",
-                 "          16 Feb 1984 07:06:40 +0000",
+      "          by funnel.example (1.2.3.4);",
+      "          16 Feb 1984 07:06:40 +0000",
       "Hey!",
       "How are you?\n."
     ])

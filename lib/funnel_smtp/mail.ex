@@ -136,7 +136,7 @@ defmodule FunnelSMTP.Mail do
   """
   @spec add_trace(t(), Trace.t()) :: t()
   def add_trace(mail = %{reverse: {reverse_path, _}}, trace)
-  when is_binary(reverse_path) do
+      when is_binary(reverse_path) do
     extended_from = "#{trace.remote_domain} (#{trace.remote_addr})"
     extended_by = "#{trace.local_domain} (#{trace.local_addr})"
 
@@ -167,16 +167,21 @@ defmodule FunnelSMTP.Mail do
     case mail.reverse do
       {:null, _} ->
         mail
+
       {reverse_path, reverse_params} ->
         [user, original_domain] = String.split(reverse_path, "@", parts: 2)
 
         time =
           Keyword.get(
-            opts, :timestamp, rem(DateTime.to_unix(DateTime.utc_now()), 1024))
+            opts,
+            :timestamp,
+            rem(DateTime.to_unix(DateTime.utc_now()), 1024)
+          )
           |> Integer.to_string(32)
 
-        srs_path = "SRS0=#{shortcut}=#{time}=#{original_domain}=" <>
-          "#{user}@#{domain}"
+        srs_path =
+          "SRS0=#{shortcut}=#{time}=#{original_domain}=" <>
+            "#{user}@#{domain}"
 
         # TODO(indutny): do we want to keep params?
         %Mail{mail | reverse: {srs_path, reverse_params}}
