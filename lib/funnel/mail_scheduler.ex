@@ -115,7 +115,7 @@ defmodule Funnel.MailScheduler do
       Mail.add_trace(mail, trace)
       |> Mail.wrap_srs(@magic_hash, config.local_domain)
 
-    mail =
+    {:ok, mail} =
       DKIM.sign(dkim, mail, [
         "date",
         "subject",
