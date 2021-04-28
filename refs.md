@@ -15,3 +15,4 @@
 - Domain-based Message Authentication, Reporting, and Conformance (DMARC) -
   https://tools.ietf.org/html/rfc7489
 - Sender Rewriting Scheme (SRS) - https://en.wikipedia.org/wiki/Sender_Rewriting_Scheme
+- The Authenticated Received Chain (ARC) Protocol - https://tools.ietf.org/html/rfc8617
