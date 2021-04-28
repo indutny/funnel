@@ -3,6 +3,7 @@ defmodule FunnelSMTP.DKIM do
   DKIM Signatures.
   """
 
+  # TODO(indutny): Don't use GenServer
   use GenServer
   use TypedStruct
 
